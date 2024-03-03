@@ -7,3 +7,22 @@ Simplistic small language model 3D-parallelism training using NumPy and MPI. Ins
 We support the following:
 - Single Core Training
 - Tensor Parallelism
+
+# Installation
+```bash
+git clone git@github.com:lweitkamp/numpitron.git
+cd numpitron
+pip install -e .
+```
+
+# Examples
+
+You can run a sample character level training run on the shakespeare corpus using:
+```bash
+python train.py --save_dir examples/model.weights
+```
+
+And run a sample generation using:
+```bash
+python sample.py --model_dir examples/model.weights
+```
