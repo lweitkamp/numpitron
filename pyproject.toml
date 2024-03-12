@@ -1,0 +1,23 @@
+[project]
+name = "numpitron"
+version = "0.1.0"
+description = "Simplistic small language model 3D-parallelism training using NumPy and MPI"
+authors = [
+    {name = "Laurens Weitkamp", email="lg.weitkamp@gmail.com"},
+]
+
+readme = "README.md"
+
+requires-python = "~=3.10"
+
+classifiers = [
+    "Topic :: Software Development"
+]
+
+dependencies = [
+    "numpy==1.26.3",
+    "mpi4py==3.1.4"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
