@@ -14,13 +14,15 @@ class Layer(ABC):
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[np.ndarray, dict]:
-        return inputs
+    ) -> tuple[dict, np.ndarray]:
+        return {}, inputs
 
-    def backward(self, grads: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
-        return grads
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
+        return {}, d_out
 
-    def __call__(self, params: dict[str, np.ndarray], inputs: np.ndarray) -> dict:
+    def __call__(
+        self, params: dict[str, np.ndarray], inputs: np.ndarray
+    ) -> tuple[dict, np.ndarray]:
         return self.forward(params, inputs)
 
 
@@ -33,17 +35,21 @@ class Sequential(Layer):
         return {layer.name: layer.init_params(rng) for layer in self.layers}
 
     def forward(
-        self, params: list[dict[str, np.ndarray] | None], inputs: np.ndarray
-    ) -> tuple[np.ndarray, list[dict]]:
-        ctxs = []
+        self, params: dict[str, np.ndarray], inputs: np.ndarray
+    ) -> tuple[dict, np.ndarray]:
+        ctxs = {}
         for layer in self.layers:
-            inputs, ctx = layer(params[layer.name], inputs)
-            ctxs.append(ctx)
-        return inputs, ctxs
+            if len(params[layer.name]) > 0:
+                print(params[layer.name].keys())
+            ctx, inputs = layer(params[layer.name], inputs)
+            ctxs[layer.name] = ctx
+        return ctxs, inputs
 
-    def backward(self, d_out: np.ndarray, ctx: list[dict]) -> tuple[np.ndarray, list[dict]]:
-        gradients = []
-        for layer, ctx in zip(self.layers[::-1], ctx[::-1]):
-            d_out, gradient = layer.backward(d_out, ctx)
-            gradients.insert(0, gradient)
-        return d_out, gradients
+    def backward(
+        self, ctx: dict[str, dict], d_out: np.ndarray,
+    ) -> tuple[dict[str, dict], np.ndarray]:
+        gradients = {}
+        for layer in self.layers[::-1]:
+            gradient, d_out = layer.backward(d_out, ctx[layer.name])
+            gradients[layer.name] = gradient
+        return gradients, d_out

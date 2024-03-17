@@ -39,7 +39,7 @@ class Linear(Layer):
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[np.ndarray, dict]:
+    ) -> tuple[dict, np.ndarray]:
         """..."""
         ctx: dict = {"inputs": np.copy(inputs), "weight": params["weight"]}
 
@@ -51,9 +51,9 @@ class Linear(Layer):
 
         outputs = outputs + params["bias"]
 
-        return outputs, ctx
+        return ctx, outputs
 
-    def backward(self, d_out: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """Perform a backward pass, calculating the gradients."""
         weight_gradient = np.einsum(
             f"...{self.in_chr}, ...{self.out_chr} -> ...{self.in_chr}{self.out_chr}",
@@ -71,4 +71,4 @@ class Linear(Layer):
             d_out,
             ctx["weight"],
         )
-        return d_out, gradients
+        return gradients, d_out

@@ -22,7 +22,7 @@ class InputEmbedding(Layer):
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[np.ndarray, dict]:
+    ) -> tuple[dict, np.ndarray]:
         """Given an embedding table and input tokens, embed the tokens.
 
         Arguments:
@@ -33,12 +33,12 @@ class InputEmbedding(Layer):
         """
         inputs_embedding = np.take(params["embedding"].T, inputs, axis=0)
         ctx = {"inputs": inputs, "embedding": params["embedding"]}
-        return inputs_embedding, ctx
+        return ctx, inputs_embedding
 
-    def backward(self, d_out: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[np.ndarray, dict]:
         gradients = {"embedding": np.zeros_like(ctx["embedding"])}
         np.add.at(gradients["embedding"].T, ctx["inputs"], d_out)
-        return d_out, gradients
+        return gradients, d_out
 
 
 class OutputEmbedding(Layer):
@@ -47,19 +47,19 @@ class OutputEmbedding(Layer):
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[np.ndarray, dict]:
+    ) -> tuple[dict, np.ndarray]:
         """Calculate the logits through a simple matrix product."""
         ctx = {"inputs": inputs, "embedding": params["embedding"]}
         outputs_embedding = inputs @ params["embedding"]
-        return outputs_embedding, ctx
+        return ctx, outputs_embedding
 
-    def backward(self, d_out: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """Perform a backward pass, calculating the gradients."""
         gradients = {
             "embedding": np.einsum("bsd, bsv -> dv", self.ctx["inputs"], d_out)
         }
         d_out = d_out @ ctx["embedding"].T
-        return d_out, gradients
+        return gradients, d_out
 
 
 class PositionalEmbedding(Layer):
@@ -85,10 +85,10 @@ class PositionalEmbedding(Layer):
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[np.ndarray, dict]:
+    ) -> tuple[dict, np.ndarray]:
         _, seq_len, *_ = inputs.shape
         inputs_encoding = params["encoding"][:seq_len, :] + inputs
         return inputs_encoding, {}
 
-    def backward(self, d_out: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
-        return d_out, {}
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
+        return {}, d_out
