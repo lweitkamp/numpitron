@@ -13,7 +13,7 @@ class MLP(Sequential):
         self.d_hidden = d_hidden
 
         self.layers.extend([
-            nn.Linear(d_model, d_hidden, f"{name}_MLP_Linear1", dtype),
+            nn.Linear(d_model, d_hidden, "Linear1", dtype),
             nn.ReLU(),
-            nn.Linear(d_hidden, d_model, f"{name}_MLP_Linear2", dtype),
+            nn.Linear(d_hidden, d_model, "Linear2", dtype),
         ])

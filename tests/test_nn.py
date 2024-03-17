@@ -92,10 +92,10 @@ def test_mlp(
     )
 
     # Transfer weights.
-    mlp_torch[0].weight = Parameter(torch.from_numpy(params[0]["weight"].T))
-    mlp_torch[0].bias = Parameter(torch.from_numpy(params[0]["bias"]))
-    mlp_torch[2].weight = Parameter(torch.from_numpy(params[2]["weight"].T))
-    mlp_torch[2].bias = Parameter(torch.from_numpy(params[2]["bias"]))
+    mlp_torch[0].weight = Parameter(torch.from_numpy(params["Linear1"]["weight"].T))
+    mlp_torch[0].bias = Parameter(torch.from_numpy(params["Linear1"]["bias"]))
+    mlp_torch[2].weight = Parameter(torch.from_numpy(params["Linear2"]["weight"].T))
+    mlp_torch[2].bias = Parameter(torch.from_numpy(params["Linear2"]["bias"]))
 
     # Forward through both models.
     out, ctx = mlp(params, inputs)

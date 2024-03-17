@@ -30,14 +30,14 @@ class Sequential(Layer):
         self.layers = []
 
     def init_params(self, rng: Generator) -> list[dict[str, np.ndarray] | None]:
-        return [layer.init_params(rng) for layer in self.layers]
+        return {layer.name: layer.init_params(rng) for layer in self.layers}
 
     def forward(
         self, params: list[dict[str, np.ndarray] | None], inputs: np.ndarray
     ) -> tuple[np.ndarray, list[dict]]:
         ctxs = []
-        for layer, param in zip(self.layers, params):
-            inputs, ctx = layer(param, inputs)
+        for layer in self.layers:
+            inputs, ctx = layer(params[layer.name], inputs)
             ctxs.append(ctx)
         return inputs, ctxs
 
