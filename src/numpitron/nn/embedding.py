@@ -31,13 +31,13 @@ class InputEmbedding(Layer):
         Returns:
             Token embeddings.
         """
-        inputs_embedding = np.take(params["weight"].T, inputs, axis=0)
-        ctx = {"inputs": inputs, "weight": params["weight"]}
+        inputs_embedding = np.take(params["embedding"].T, inputs, axis=0)
+        ctx = {"inputs": inputs, "embedding": params["embedding"]}
         return inputs_embedding, ctx
 
     def backward(self, d_out: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
-        gradients = {"weight": np.zeros_like(ctx["weight"])}
-        np.add.at(gradients["weight"].T, ctx["inputs"], d_out)
+        gradients = {"embedding": np.zeros_like(ctx["embedding"])}
+        np.add.at(gradients["embedding"].T, ctx["inputs"], d_out)
         return d_out, gradients
 
 
@@ -49,14 +49,16 @@ class OutputEmbedding(Layer):
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[np.ndarray, dict]:
         """Calculate the logits through a simple matrix product."""
-        ctx = {"inputs": inputs, "weight": params["weight"]}
-        outputs_embedding = inputs @ params["weight"]
+        ctx = {"inputs": inputs, "embedding": params["embedding"]}
+        outputs_embedding = inputs @ params["embedding"]
         return outputs_embedding, ctx
 
     def backward(self, d_out: np.ndarray, ctx: dict) -> tuple[np.ndarray, dict]:
         """Perform a backward pass, calculating the gradients."""
-        gradients = {"weight": np.einsum("bsd, bsv -> dv", self.ctx["inputs"], d_out)}
-        d_out = d_out @ ctx["weight"].T
+        gradients = {
+            "embedding": np.einsum("bsd, bsv -> dv", self.ctx["inputs"], d_out)
+        }
+        d_out = d_out @ ctx["embedding"].T
         return d_out, gradients
 
 
