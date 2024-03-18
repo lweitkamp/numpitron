@@ -14,7 +14,7 @@ from numpy.random import Generator
 from torch import nn
 from torch.nn import Parameter
 
-from numpitron.nn import MLP, InputEmbedding, Linear, OutputEmbedding, LayerNorm
+from numpitron.nn import MLP, InputEmbedding, Linear, OutputEmbedding, LayerNorm, Softmax
 
 
 TEST_SHAPES = [
@@ -29,6 +29,40 @@ TEST_SHAPES = [
 def rng() -> Generator:
     return np.random.default_rng(42)
 
+@pytest.mark.parametrize(
+    "batch_size,seq_len,d_model", [shape for shape in TEST_SHAPES]
+)
+def test_softmax(
+    batch_size: int,
+    seq_len: int,
+    d_model: int,
+    rng: Generator,
+):
+    n_heads: int = d_model // 2
+    inputs = rng.random((batch_size, n_heads, seq_len, seq_len)).astype(np.float32)
+    inputs_torch = torch.from_numpy(inputs)
+    inputs_torch.requires_grad = True
+
+    softmax = Softmax(axis=-1)
+    params = softmax.init_params(rng)
+    softmax_torch = nn.Softmax(dim=-1)
+
+    ctx, out = softmax(params, inputs)
+    out_torch = softmax_torch(inputs_torch)
+
+    out_torch.sum().backward()
+    _, d_out = softmax.backward(ctx, np.ones_like(out))
+
+    np.testing.assert_allclose(
+        d_out.reshape(inputs_torch.grad.shape),
+        inputs_torch.grad.detach().numpy(),
+        atol=1e-5,
+    )
+    np.testing.assert_allclose(
+        out,
+        out_torch.detach().numpy(),
+        atol=1e-5,
+    )
 
 @pytest.mark.parametrize(
     "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
@@ -96,7 +130,6 @@ def test_linear(
         out_torch.detach().numpy(),
         atol=1e-5,
     )
-
     np.testing.assert_allclose(
         gradients["weight"].T,
         linear_torch.weight.grad,
@@ -143,13 +176,11 @@ def test_mlp(
         d_out.reshape(inputs_torch.grad.shape),
         inputs_torch.grad.detach().numpy(),
     )
-
     np.testing.assert_allclose(
         out.reshape(batch_size * seq_len, d_model),
         out_torch.detach().numpy(),
         atol=1e-5,
     )
-
     np.testing.assert_allclose(
         gradients["Linear2"]["weight"].T,
         mlp_torch[2].weight.grad,
@@ -207,5 +238,4 @@ def test_layer_norm(
     np.testing.assert_allclose(
         gradients["bias"], norm_torch.bias.grad.detach().numpy(), atol=1e-5
     )
-
     np.testing.assert_allclose(d_out, inputs_torch.grad.detach().numpy(), atol=1e-4)
