@@ -40,7 +40,7 @@ class Linear(Layer):
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[dict, np.ndarray]:
-        """..."""
+        """Perform a forward pass in the linear layer, y = Wx + b."""
         ctx: dict = {"inputs": np.copy(inputs), "weight": params["weight"]}
 
         outputs = np.einsum(
