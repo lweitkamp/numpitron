@@ -133,12 +133,16 @@ def test_mlp(
     mlp_torch[2].weight = Parameter(torch.from_numpy(params["Linear2"]["weight"].T))
     mlp_torch[2].bias = Parameter(torch.from_numpy(params["Linear2"]["bias"]))
 
-    print(len(params))
     ctx, out = mlp(params, inputs)
     out_torch = mlp_torch(inputs_torch)
 
     out_torch.sum().backward()
     gradients, d_out = mlp.backward(ctx, np.ones_like(out))
+
+    np.testing.assert_allclose(
+        d_out.reshape(inputs_torch.grad.shape),
+        inputs_torch.grad.detach().numpy(),
+    )
 
     np.testing.assert_allclose(
         out.reshape(batch_size * seq_len, d_model),
