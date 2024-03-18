@@ -9,7 +9,7 @@ class Layer(ABC):
         self.name = name
         self.dtype = dtype
 
-    def init_params(self, rng: Generator) -> dict:
+    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         return {}
 
     def forward(
@@ -31,7 +31,7 @@ class Sequential(Layer):
         super().__init__(**kwargs)
         self.layers = []
 
-    def init_params(self, rng: Generator) -> list[dict[str, np.ndarray] | None]:
+    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         return {layer.name: layer.init_params(rng) for layer in self.layers}
 
     def forward(
