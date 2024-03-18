@@ -14,7 +14,14 @@ from numpy.random import Generator
 from torch import nn
 from torch.nn import Parameter
 
-from numpitron.nn import MLP, InputEmbedding, Linear, OutputEmbedding, LayerNorm, Softmax
+from numpitron.nn import (
+    MLP,
+    InputEmbedding,
+    Linear,
+    OutputEmbedding,
+    LayerNorm,
+    Softmax,
+)
 
 
 TEST_SHAPES = [
@@ -29,9 +36,8 @@ TEST_SHAPES = [
 def rng() -> Generator:
     return np.random.default_rng(42)
 
-@pytest.mark.parametrize(
-    "batch_size,seq_len,d_model", [shape for shape in TEST_SHAPES]
-)
+
+@pytest.mark.parametrize("batch_size,seq_len,d_model", [shape for shape in TEST_SHAPES])
 def test_softmax(
     batch_size: int,
     seq_len: int,
@@ -63,6 +69,7 @@ def test_softmax(
         out_torch.detach().numpy(),
         atol=1e-5,
     )
+
 
 @pytest.mark.parametrize(
     "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
