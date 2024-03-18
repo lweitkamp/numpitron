@@ -50,6 +50,6 @@ class Sequential(Layer):
     ) -> tuple[dict[str, dict], np.ndarray]:
         gradients = {}
         for layer in self.layers[::-1]:
-            gradient, d_out = layer.backward(d_out, ctx[layer.name])
+            gradient, d_out = layer.backward(ctx[layer.name], d_out)
             gradients[layer.name] = gradient
         return gradients, d_out
