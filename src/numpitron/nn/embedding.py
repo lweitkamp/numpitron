@@ -45,6 +45,11 @@ class OutputEmbedding(Layer):
     """The output embedding producing logits. weight are tied with that
     of the input embedding layer."""
 
+    def __init__(
+        self, d_model: int, vocab_size: int, name="OutputEmbedding", dtype=np.float32
+    ):
+        super().__init__(name=name, dtype=dtype)
+
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[dict, np.ndarray]:
