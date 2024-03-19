@@ -1,4 +1,5 @@
 from abc import ABC
+from pathlib import Path
 
 import numpy as np
 from numpy.random import Generator
@@ -20,10 +21,8 @@ class Layer(ABC):
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         return {}, d_out
 
-    def __call__(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        return self.forward(params, inputs)
+    def __call__(self, *args, **kwargs) -> tuple[dict, np.ndarray]:
+        return self.forward(*args, **kwargs)
 
 
 class Sequential(Layer):
@@ -46,10 +45,21 @@ class Sequential(Layer):
         return ctxs, inputs
 
     def backward(
-        self, ctx: dict[str, dict], d_out: np.ndarray,
+        self,
+        ctx: dict[str, dict],
+        d_out: np.ndarray,
     ) -> tuple[dict[str, dict], np.ndarray]:
         gradients = {}
         for layer in self.layers[::-1]:
             gradient, d_out = layer.backward(ctx[layer.name], d_out)
             gradients[layer.name] = gradient
         return gradients, d_out
+
+
+class Model(Sequential):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def save(save_path: str | Path, params: dict):
+        save_path = Path(save_path)
