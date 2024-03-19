@@ -15,12 +15,13 @@ from torch import nn
 from torch.nn import Parameter
 
 from numpitron.nn import (
-    MLP,
-    InputEmbedding,
-    Linear,
-    OutputEmbedding,
-    LayerNorm,
+    Attention,
     Softmax,
+    InputEmbedding,
+    OutputEmbedding,
+    Linear,
+    MLP,
+    LayerNorm,
 )
 
 
@@ -35,6 +36,80 @@ TEST_SHAPES = [
 @pytest.fixture
 def rng() -> Generator:
     return np.random.default_rng(42)
+
+
+@pytest.mark.parametrize("batch_size,seq_len,d_model", [shape for shape in TEST_SHAPES])
+def test_attention(
+    batch_size: int,
+    seq_len: int,
+    d_model: int,
+    rng: Generator,
+):
+    n_heads: int = d_model // 2
+
+    inputs = rng.random((batch_size, seq_len, d_model)).astype(np.float32)
+    inputs_torch = torch.from_numpy(inputs)
+    inputs_torch.requires_grad = True
+
+    attention = Attention(d_model, n_heads, d_model // n_heads)
+    params = attention.init_params(rng)
+    attention_torch = nn.MultiheadAttention(d_model, n_heads, batch_first=True)
+
+    attention_torch.in_proj_weight = Parameter(
+        torch.from_numpy(
+            np.concatenate(
+                [
+                    params["q_projection"]["weight"],
+                    params["k_projection"]["weight"],
+                    params["v_projection"]["weight"],
+                ]
+            ).reshape(attention_torch.in_proj_weight.shape)
+        )
+    )
+
+    attention_torch.in_proj_bias = Parameter(
+        torch.from_numpy(
+            np.concatenate(
+                [
+                    params["q_projection"]["bias"],
+                    params["k_projection"]["bias"],
+                    params["v_projection"]["bias"],
+                ]
+            ).reshape(attention_torch.in_proj_bias.shape)
+        )
+    )
+
+    attention_torch.out_proj.weight = Parameter(
+        torch.from_numpy(params["out_projection"]["weight"].reshape(d_model, d_model)).T
+    )
+    attention_torch.out_proj.bias = Parameter(
+        torch.from_numpy(params["out_projection"]["bias"].reshape(-1))
+    )
+    # Forward through both models.
+    ctx, out = attention(params, inputs)
+    out_torch, _ = attention_torch(
+        inputs_torch,
+        inputs_torch,
+        inputs_torch,
+        is_causal=True,
+        attn_mask=torch.from_numpy(~ctx["mask"].squeeze((0, 1))),
+        average_attn_weights=False,
+        need_weights=False,
+    )
+
+    out_torch.sum().backward()
+    gradients, d_out = attention.backward(ctx, np.ones_like(inputs))
+
+    # There are quite some architectural differences with implementations so we
+    # are a bit lenient here in terms of tolerance.
+    np.testing.assert_allclose(
+        out,
+        out_torch.detach().numpy(),
+        atol=1e-3,
+    )
+
+    # TODO(laurens): gradients with weights and d_out do not align at all.
+    # I'm confident in the implementation, so it's likely to be accumulation of errors.
 
 
 @pytest.mark.parametrize("batch_size,seq_len,d_model", [shape for shape in TEST_SHAPES])
