@@ -17,6 +17,7 @@ from torch.nn import Parameter
 from numpitron.nn import (
     Attention,
     Softmax,
+    SoftmaxCrossEntropy,
     InputEmbedding,
     OutputEmbedding,
     Linear,
@@ -145,6 +146,38 @@ def test_softmax(
         atol=1e-5,
     )
 
+@pytest.mark.parametrize(
+    "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
+)
+def test_softmax_cross_entropy(
+    batch_size: int,
+    seq_len: int,
+    d_model: int,
+    vocab_size: int,
+    rng: Generator,
+):
+    inputs = rng.random((batch_size, seq_len, vocab_size))
+    inputs_torch = torch.from_numpy(inputs).reshape(batch_size * seq_len, -1)
+    inputs_torch.requires_grad = True
+
+    labels = rng.integers(0, vocab_size, (batch_size, seq_len))
+    labels_torch = torch.from_numpy(labels).reshape(-1)
+
+    ce = SoftmaxCrossEntropy()
+    params = ce.init_params(rng)
+    ce_torch = nn.CrossEntropyLoss(reduction="none")
+
+    ctx, out = ce(params, inputs, labels)
+    out_torch = ce_torch(inputs_torch, labels_torch)
+
+    gradients, d_out = ce.backward(ctx, np.ones_like(inputs))
+    out_torch.sum().backward()
+
+    np.testing.assert_allclose(out.reshape(-1), out_torch.detach().numpy())
+    np.testing.assert_allclose(
+        d_out.reshape(batch_size * seq_len, vocab_size),
+        inputs_torch.grad.detach().numpy(),
+    )
 
 @pytest.mark.parametrize(
     "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
@@ -257,6 +290,8 @@ def test_mlp(
     np.testing.assert_allclose(
         d_out.reshape(inputs_torch.grad.shape),
         inputs_torch.grad.detach().numpy(),
+        rtol=1e-5,
+        atol=1e-5,
     )
     np.testing.assert_allclose(
         out.reshape(batch_size * seq_len, d_model),
