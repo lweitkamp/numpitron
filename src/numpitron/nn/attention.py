@@ -22,10 +22,6 @@ class Attention(Layer):
         self.d_hidden = d_hidden
         self.scale = np.sqrt(self.d_hidden)
 
-        self.qkv: nn.Linear
-        self.out: nn.Linear
-
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         self.qkv = nn.Linear(
             self.d_model, (self.n_heads, self.d_hidden), "qkv", self.dtype
         )
@@ -33,6 +29,7 @@ class Attention(Layer):
             (self.n_heads, self.d_hidden), self.d_model, "out", self.dtype
         )
 
+    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         params: dict[str, np.ndarray] = {
             "q_projection": self.qkv.init_params(rng),
             "k_projection": self.qkv.init_params(rng),

@@ -93,7 +93,7 @@ class PositionalEmbedding(Layer):
     ) -> tuple[dict, np.ndarray]:
         _, seq_len, *_ = inputs.shape
         inputs_encoding = params["encoding"][:seq_len, :] + inputs
-        return inputs_encoding, {}
+        return {}, inputs_encoding
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         return {}, d_out
