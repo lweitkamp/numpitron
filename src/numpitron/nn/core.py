@@ -38,8 +38,6 @@ class Sequential(Layer):
     ) -> tuple[dict, np.ndarray]:
         ctxs = {}
         for layer in self.layers:
-            if len(params[layer.name]) > 0:
-                print(params[layer.name].keys())
             ctx, inputs = layer(params[layer.name], inputs)
             ctxs[layer.name] = ctx
         return ctxs, inputs
@@ -56,10 +54,9 @@ class Sequential(Layer):
         return gradients, d_out
 
 
-class Model(Sequential):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+def save_params(save_path: Path | str, params: dict) -> None:
+    np.save(save_path, params, allow_pickle=True)
 
-    @staticmethod
-    def save(save_path: str | Path, params: dict):
-        save_path = Path(save_path)
+
+def load_params(load_path: Path | str):
+    return np.load(load_path, allow_pickle=True)[()]
