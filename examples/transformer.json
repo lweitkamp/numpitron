@@ -1,0 +1,16 @@
+{
+    "batch_size": 12,
+    "num_epochs": 100,
+    "seq_len": 64,
+    "d_model": 128,
+    "vocab_size": 65,
+    "n_heads": 4,
+    "n_layers": 4,
+    "learning_rate": 1e-4,
+    "betas": [
+        0.9,
+        0.99
+    ],
+    "dataset_train_path": "examples/shakespeare_char_train.bin",
+    "dataset_validation_path": "examples/shakespeare_char_val.bin"
+}
