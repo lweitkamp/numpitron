@@ -1,30 +1,4 @@
-from pathlib import Path
 import numpy as np
-from typing import Callable
-from dataclasses import dataclass
-
-
-def tree_map(fn: Callable, *args) -> dict:    
-    def tree_map_single(fn: Callable, inputs):
-        if not isinstance(inputs, dict):
-            return fn(inputs)
-        return {key: tree_map_single(fn, inputs) for key in inputs}
-    
-    def tree_map_multiple(fn: Callable, *args):
-        if not isinstance(args[0], dict):
-            return fn(*args)
-        return {key: tree_map_multiple(fn, *args) for key in args[0]}
-    
-    if len(args) == 1:
-        return tree_map_single(fn, args[0])
-
-    return tree_map_multiple(fn, *args)
-
-
-@dataclass
-class AdamStats:
-    velocity: np.ndarray
-    momentum: np.ndarray
 
 
 class Adam:
@@ -37,41 +11,70 @@ class Adam:
         self.learning_rate = learning_rate
         self.betas = betas
         self.eps = eps
-        
-    
-    @staticmethod
-    def init(parameter: np.ndarray) -> dict[str, np.ndarray]:
-        return AdamStats(np.zeros_like(parameter), np.zeros_like(parameter))
 
     def init_state(self, parameters: dict) -> dict:
-        return {
+        def _add_hparams(p):
+            return {
+                key: {
+                    "momentum": np.zeros_like(value),
+                    "velocity": np.zeros_like(value),
+                }
+                if isinstance(value, np.ndarray)
+                else _add_hparams(value)
+                for key, value in p.items()
+            }
+
+        state = {
+            "learning_rate": self.learning_rate,
             "timestep": 0,
             "beta0": self.betas[0],
             "beta1": self.betas[1],
             "eps": self.eps,
-            "state": tree_map(self.init, parameters),
+            "state": _add_hparams(parameters),
         }
-    
-    @staticmethod
-    def update(optimizer_state: dict, gradients: dict, beta0: float, beta1: float, timestep: int):
-        b1, b2 = self.betas
+        return state
 
-        state.momentum = b1 * state.momentum + (1 - b1) * gradients
-        state.velocity = b2 * state.velocity + (1 - b2) * np.power(gradients, 2)
+    def step(
+        self, optimizer_state: dict, gradients: dict, parameters: dict
+    ) -> tuple[dict, dict]:
+        lr = optimizer_state["learning_rate"]
+        b0 = optimizer_state["beta0"]
+        b1 = optimizer_state["beta1"]
+        timestep = optimizer_state["timestep"] + 1
+        eps = optimizer_state["eps"]
 
-        momentum = state.momentum / (1 - b1**self.timestep)
-        velocity = state.velocity / (1 - b2**self.timestep)
-        update = self.learning_rate * momentum / (np.sqrt(velocity) + self.eps)
-        state.parameter.data = state.parameter.data - update
+        def update(o, g, p):
+            new_o, new_p = {}, {}
+            for key, value in p.items():
+                if isinstance(p[value], np.ndarray):
+                    new_o["momentum"] = b0 * o["momentum"] + (1 - b0) * g["gradient"]
+                    new_o["velocity"] = b1 * o["velocity"] + (1 - b1) * np.power(
+                        g["gradient"], 2
+                    )
 
+                    m = new_o["momentum"] / (1 - b0**timestep)
+                    v = new_o["velocity"] / (1 - b1**timestep)
+                    new_p[key] = p[key] - (lr * m / (np.sqr(v) + eps))
+                else:
+                    _o, _p = update(o[key], g[key], p[key])
+                    new_o[key] = _o
+                    new_p[key] = _p
+            return new_o, new_p
 
-    def step(self, optimizer_state: dict, gradients: dict, parameters: dict) -> dict:
-        optimizer_state["timestep"] += 1
-        
-        # We need to take the optimizr state, the gradients, and the model weights.
-        
-        new_gradients = tree_map(self.update, gradients, optimizer_state["state"], )
-        return optimizer_state, new_gradients
+        new_optimizer_state, new_parameters = update(
+            optimizer_state["state"], gradients, parameters
+        )
+
+        new_optimizer_state = {
+            "learning_rate": lr,
+            "timestep": timestep,
+            "beta0": b0,
+            "beta1": b1,
+            "eps": eps,
+            "state": new_optimizer_state,
+        }
+
+        return new_optimizer_state, new_parameters
 
     # def save(self, path: Path):
     #     save_state = {}
@@ -80,7 +83,6 @@ class Adam:
     #     save_state["learning_rate"] = self.learning_rate
     #     save_state["eps"] = self.eps
     #     save_state["beta0"], save_state["beta1"] = self.betas
-
 
     # def load(self, path: Path):
     #     save_state = np.load(path, allow_pickle=True)[()]
