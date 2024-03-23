@@ -146,6 +146,7 @@ def test_softmax(
         atol=1e-5,
     )
 
+
 @pytest.mark.parametrize(
     "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
 )
@@ -179,6 +180,7 @@ def test_softmax_cross_entropy(
         inputs_torch.grad.detach().numpy(),
     )
 
+
 @pytest.mark.parametrize(
     "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
 )
@@ -204,15 +206,9 @@ def test_input_embedding(
     grads, d_out = embedding.backward(ctx, np.ones_like(out))
     out_torch.sum().backward()
 
+    np.testing.assert_allclose(out, out_torch.detach().numpy(), atol=1e-5)
     np.testing.assert_allclose(
-        out,
-        out_torch.detach().numpy(),
-        atol=1e-5,
-    )
-    np.testing.assert_allclose(
-        grads["embedding"].T,
-        embedding_torch.weight.grad,
-        atol=1e-5,
+        grads["embedding"].T, embedding_torch.weight.grad, atol=1e-5
     )
 
 
@@ -245,16 +241,8 @@ def test_linear(
         out_torch.detach().numpy(),
         atol=1e-5,
     )
-    np.testing.assert_allclose(
-        grads["weight"].T,
-        linear_torch.weight.grad,
-        atol=1e-5,
-    )
-    np.testing.assert_allclose(
-        grads["bias"],
-        linear_torch.bias.grad,
-        atol=1e-5,
-    )
+    np.testing.assert_allclose(grads["weight"].T, linear_torch.weight.grad, atol=1e-5)
+    np.testing.assert_allclose(grads["bias"], linear_torch.bias.grad, atol=1e-5)
 
 
 @pytest.mark.parametrize("batch_size,seq_len,d_model", TEST_SHAPES)

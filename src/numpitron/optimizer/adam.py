@@ -15,10 +15,7 @@ class Adam:
     def init_state(self, parameters: dict) -> dict:
         def _add_hparams(p):
             return {
-                key: {
-                    "momentum": np.zeros_like(value),
-                    "velocity": np.zeros_like(value),
-                }
+                key: {"m": np.zeros_like(value), "v": np.zeros_like(value)}
                 if isinstance(value, np.ndarray)
                 else _add_hparams(value)
                 for key, value in p.items()
@@ -38,23 +35,23 @@ class Adam:
         self, optimizer_state: dict, gradients: dict, parameters: dict
     ) -> tuple[dict, dict]:
         lr = optimizer_state["learning_rate"]
-        b0 = optimizer_state["beta0"]
-        b1 = optimizer_state["beta1"]
+        b1 = optimizer_state["beta0"]
+        b2 = optimizer_state["beta1"]
         timestep = optimizer_state["timestep"] + 1
         eps = optimizer_state["eps"]
 
         def update(o, g, p):
             new_o, new_p = {}, {}
-            for key, value in p.items():
-                if isinstance(p[value], np.ndarray):
-                    new_o["momentum"] = b0 * o["momentum"] + (1 - b0) * g["gradient"]
-                    new_o["velocity"] = b1 * o["velocity"] + (1 - b1) * np.power(
-                        g["gradient"], 2
-                    )
+            for key in p.keys():
+                if isinstance(p[key], np.ndarray):
+                    new_o[key] = {
+                        "m": b1 * o[key]["m"] + (1 - b1) * g[key],
+                        "v": b2 * o[key]["v"] + (1 - b2) * np.power(g[key], 2),
+                    }
 
-                    m = new_o["momentum"] / (1 - b0**timestep)
-                    v = new_o["velocity"] / (1 - b1**timestep)
-                    new_p[key] = p[key] - (lr * m / (np.sqr(v) + eps))
+                    m = new_o[key]["m"] / (1 - b1**timestep)
+                    v = new_o[key]["v"] / (1 - b2**timestep)
+                    new_p[key] = p[key] - (lr * m / (np.sqrt(v) + eps))
                 else:
                     _o, _p = update(o[key], g[key], p[key])
                     new_o[key] = _o
@@ -68,26 +65,10 @@ class Adam:
         new_optimizer_state = {
             "learning_rate": lr,
             "timestep": timestep,
-            "beta0": b0,
-            "beta1": b1,
+            "beta0": b1,
+            "beta1": b2,
             "eps": eps,
             "state": new_optimizer_state,
         }
 
         return new_optimizer_state, new_parameters
-
-    # def save(self, path: Path):
-    #     save_state = {}
-
-    #     save_state["timestep"] = self.timestep
-    #     save_state["learning_rate"] = self.learning_rate
-    #     save_state["eps"] = self.eps
-    #     save_state["beta0"], save_state["beta1"] = self.betas
-
-    # def load(self, path: Path):
-    #     save_state = np.load(path, allow_pickle=True)[()]
-
-    #     self.timestep = save_state["timestep"]
-    #     self.learning_rate = save_state["learning_rate"]
-    #     self.eps = save_state["eps"]
-    #     self.betas = save_state["beta0"], save_state["beta1"]
