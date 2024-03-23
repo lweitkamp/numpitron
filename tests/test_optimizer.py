@@ -41,28 +41,22 @@ def test_adam_linear(
     linear_torch.bias = Parameter(torch.from_numpy(params["bias"]))
 
     optimizer = Adam(1e-4, betas=(0.9, 0.999), eps=1e-8)
+    state = optimizer.init_state(params)
     optimizer_torch = optim.Adam(
         linear_torch.parameters(), lr=1e-4, betas=(0.9, 0.999), eps=1e-8
     )
+    optimizer_torch.zero_grad()
 
     ctx, out = linear(params, inputs)
     out_torch = linear_torch(inputs_torch)
 
     out_torch.sum().backward()
-    gradients, d_out = linear.backward(ctx, np.ones_like(out))
+    optimizer_torch.step()
+
+    grads, d_out = linear.backward(ctx, np.ones_like(out))
+    state, params = optimizer.step(state, grads, params)
 
     np.testing.assert_allclose(
-        out.reshape(batch_size * seq_len, d_model * 4),
-        out_torch.detach().numpy(),
-        atol=1e-5,
+        params["weight"].T, linear_torch.weight.detach().numpy(), atol=1e-4
     )
-    np.testing.assert_allclose(
-        gradients["weight"].T,
-        linear_torch.weight.grad,
-        atol=1e-5,
-    )
-    np.testing.assert_allclose(
-        gradients["bias"],
-        linear_torch.bias.grad,
-        atol=1e-5,
-    )
+    np.testing.assert_allclose(params["bias"], linear_torch.bias.detach().numpy(), atol=1e-4)
