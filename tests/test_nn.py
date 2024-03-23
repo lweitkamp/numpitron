@@ -3,7 +3,7 @@ is installed.
 
 Each test follows a basic pattern:
 initialize a numpitron layer, copy its weights to a pytorch-equivalent, run a
-forward and backward pass and compare that the outputs and the gradients
+forward and backward pass and compare that the outputs and the grads
 are approximately equal."""
 
 
@@ -99,7 +99,7 @@ def test_attention(
     )
 
     out_torch.sum().backward()
-    gradients, d_out = attention.backward(ctx, np.ones_like(inputs))
+    grads, d_out = attention.backward(ctx, np.ones_like(inputs))
 
     # There are quite some architectural differences with implementations so we
     # are a bit lenient here in terms of tolerance.
@@ -109,7 +109,7 @@ def test_attention(
         atol=1e-3,
     )
 
-    # TODO(laurens): gradients with weights and d_out do not align at all.
+    # TODO(laurens): grads with weights and d_out do not align at all.
     # I'm confident in the implementation, so it's likely to be accumulation of errors.
 
 
@@ -170,7 +170,7 @@ def test_softmax_cross_entropy(
     ctx, out = ce(params, inputs, labels)
     out_torch = ce_torch(inputs_torch, labels_torch)
 
-    gradients, d_out = ce.backward(ctx, np.ones_like(inputs))
+    grads, d_out = ce.backward(ctx, np.ones_like(inputs))
     out_torch.sum().backward()
 
     np.testing.assert_allclose(out.reshape(-1), out_torch.detach().numpy())
@@ -201,7 +201,7 @@ def test_input_embedding(
     ctx, out = embedding(params, inputs)
     out_torch = embedding_torch(inputs_torch)
 
-    gradients, d_out = embedding.backward(ctx, np.ones_like(out))
+    grads, d_out = embedding.backward(ctx, np.ones_like(out))
     out_torch.sum().backward()
 
     np.testing.assert_allclose(
@@ -210,7 +210,7 @@ def test_input_embedding(
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["embedding"].T,
+        grads["embedding"].T,
         embedding_torch.weight.grad,
         atol=1e-5,
     )
@@ -238,7 +238,7 @@ def test_linear(
     out_torch = linear_torch(inputs_torch)
 
     out_torch.sum().backward()
-    gradients, d_out = linear.backward(ctx, np.ones_like(out))
+    grads, d_out = linear.backward(ctx, np.ones_like(out))
 
     np.testing.assert_allclose(
         out.reshape(batch_size * seq_len, d_model * 4),
@@ -246,12 +246,12 @@ def test_linear(
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["weight"].T,
+        grads["weight"].T,
         linear_torch.weight.grad,
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["bias"],
+        grads["bias"],
         linear_torch.bias.grad,
         atol=1e-5,
     )
@@ -285,7 +285,7 @@ def test_mlp(
     out_torch = mlp_torch(inputs_torch)
 
     out_torch.sum().backward()
-    gradients, d_out = mlp.backward(ctx, np.ones_like(out))
+    grads, d_out = mlp.backward(ctx, np.ones_like(out))
 
     np.testing.assert_allclose(
         d_out.reshape(inputs_torch.grad.shape),
@@ -299,25 +299,25 @@ def test_mlp(
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["Linear2"]["weight"].T,
+        grads["Linear2"]["weight"].T,
         mlp_torch[2].weight.grad,
         rtol=1e-5,
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["Linear2"]["bias"],
+        grads["Linear2"]["bias"],
         mlp_torch[2].bias.grad,
         rtol=1e-5,
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["Linear1"]["weight"].T,
+        grads["Linear1"]["weight"].T,
         mlp_torch[0].weight.grad,
         rtol=1e-5,
         atol=1e-5,
     )
     np.testing.assert_allclose(
-        gradients["Linear1"]["bias"],
+        grads["Linear1"]["bias"],
         mlp_torch[0].bias.grad,
         rtol=1e-5,
         atol=1e-5,
@@ -345,14 +345,14 @@ def test_layer_norm(
     ctx, out = norm(params, inputs)
     out_torch = norm_torch(inputs_torch)
 
-    gradients, d_out = norm.backward(ctx, np.ones_like(inputs))
+    grads, d_out = norm.backward(ctx, np.ones_like(inputs))
     out_torch.sum().backward()
 
     np.testing.assert_allclose(out, out_torch.detach().numpy(), atol=1e-5)
     np.testing.assert_allclose(
-        gradients["weight"], norm_torch.weight.grad.detach().numpy(), atol=1e-5
+        grads["weight"], norm_torch.weight.grad.detach().numpy(), atol=1e-5
     )
     np.testing.assert_allclose(
-        gradients["bias"], norm_torch.bias.grad.detach().numpy(), atol=1e-5
+        grads["bias"], norm_torch.bias.grad.detach().numpy(), atol=1e-5
     )
     np.testing.assert_allclose(d_out, inputs_torch.grad.detach().numpy(), atol=1e-4)
