@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.random import Generator
 
-
 from numpitron import nn
 from numpitron.nn.core import Layer, Sequential
 
@@ -25,8 +24,16 @@ class TransformerBlock(Layer):
         self.mlp = nn.MLP(self.d_model, self.d_model * 4)
         self.norm2 = nn.LayerNorm(self.d_model)
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        params: dict[str, np.ndarray] = {
+    def init_params(
+        self, rng: Generator
+    ) -> dict[
+        str,
+        np.ndarray,
+    ]:
+        params: dict[
+            str,
+            np.ndarray,
+        ] = {
             "attention": self.attention.init_params(rng),
             "norm1": self.norm1.init_params(rng),
             "mlp": self.mlp.init_params(rng),
@@ -35,8 +42,16 @@ class TransformerBlock(Layer):
         return params
 
     def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
+        self,
+        params: dict[
+            str,
+            np.ndarray,
+        ],
+        inputs: np.ndarray,
+    ) -> tuple[
+        dict,
+        np.ndarray,
+    ]:
         attention_ctx, inputs_ = self.attention(params["attention"], inputs)
         norm1_ctx, inputs_ = self.norm1(params["norm1"], inputs_)
         inputs = inputs_ + inputs
@@ -54,7 +69,14 @@ class TransformerBlock(Layer):
 
         return ctx, inputs
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
+    def backward(
+        self,
+        ctx: dict,
+        d_out: np.ndarray,
+    ) -> tuple[
+        dict,
+        np.ndarray,
+    ]:
         norm2_gradients, d_out = self.norm2.backward(ctx["norm2"], d_out)
         mlp_gradients, d_out = self.mlp.backward(ctx["mlp"], d_out)
         norm1_gradients, d_out = self.norm2.backward(ctx["norm1"], d_out)
@@ -96,8 +118,33 @@ class Transformer(Sequential):
 
         self.tie_embeddings = tie_embeddings
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
+    def init_params(
+        self, rng: Generator
+    ) -> dict[
+        str,
+        np.ndarray,
+    ]:
         params = super().init_params(rng)
         if self.tie_embeddings:
             params[self.layers[-1].name] = params[self.layers[0].name]
         return params
+
+    def forward(
+        self,
+        params: dict[str, np.ndarray],
+        inputs: np.ndarray,
+        labels: np.ndarray,
+    ) -> tuple[dict, np.ndarray]:
+        ce = nn.SoftmaxCrossEntropy()
+
+        ctx, logits = super().forward(params, inputs)
+        ctx_cross_entorpy, loss = ce.forward(params, logits, labels)
+
+        ctx[ce.name] = ctx_cross_entorpy
+        return ctx, loss
+
+    def backward(self, ctx: dict) -> tuple[dict, np.ndarray]:
+        ce = nn.SoftmaxCrossEntropy()
+        _, d_out = ce.backward(ctx[ce.name])
+        gradients, d_out = super().backward(ctx, d_out)
+        return gradients
