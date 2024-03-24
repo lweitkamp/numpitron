@@ -14,5 +14,5 @@
     "save_path": "data",
     "dataset_train_path": "data/shakespeare_char_train.bin",
     "dataset_validation_path": "data/shakespeare_char_val.bin",
-    "from_savefile": true
+    "from_savefile": false
 }
