@@ -61,7 +61,7 @@ class OutputEmbedding(Layer):
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """Perform a backward pass, calculating the gradients."""
         gradients = {
-            "embedding": np.einsum("bsd, bsv -> dv", self.ctx["inputs"], d_out)
+            "embedding": np.einsum("bsd, bsv -> dv", ctx["inputs"], d_out)
         }
         d_out = d_out @ ctx["embedding"].T
         return gradients, d_out
@@ -74,25 +74,18 @@ class PositionalEmbedding(Layer):
         self, d_model: int, seq_len: int, name="PositionalEmbedding", dtype=np.float32
     ):
         super().__init__(name=name, dtype=dtype)
-        self.d_model = d_model
-        self.seq_len = seq_len
-
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        pos = np.expand_dims(np.arange(0, self.seq_len), -1)
-        _2i = np.arange(self.d_model, step=2) / self.d_model
-
-        encoding = np.zeros((self.seq_len, self.d_model), dtype=self.dtype)
+        pos = np.expand_dims(np.arange(0, seq_len), -1)
+        _2i = np.arange(d_model, step=2) / d_model
+        encoding = np.zeros((seq_len, d_model), dtype=dtype)
         encoding[:, 0::2] = np.sin(pos / (10000**_2i))
         encoding[:, 1::2] = np.cos(pos / (10000**_2i))
-
-        params: dict[str, np.ndarray] = {"encoding": encoding}
-        return {key: value.astype(self.dtype) for key, value in params.items()}
+        self.encoding = encoding
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[dict, np.ndarray]:
         _, seq_len, *_ = inputs.shape
-        inputs_encoding = params["encoding"][:seq_len, :] + inputs
+        inputs_encoding = self.encoding[:seq_len, :] + inputs
         return {}, inputs_encoding
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
