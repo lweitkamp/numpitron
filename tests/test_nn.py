@@ -14,17 +14,8 @@ from numpy.random import Generator
 from torch import nn
 from torch.nn import Parameter
 
-from numpitron.nn import (
-    Attention,
-    Softmax,
-    SoftmaxCrossEntropy,
-    InputEmbedding,
-    OutputEmbedding,
-    Linear,
-    MLP,
-    LayerNorm,
-)
-
+from numpitron.nn import (MLP, Attention, InputEmbedding, LayerNorm, Linear,
+                          Softmax, SoftmaxCrossEntropy)
 
 TEST_SHAPES = [
     (1, 1, 8),
