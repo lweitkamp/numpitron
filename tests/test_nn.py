@@ -165,13 +165,12 @@ def test_softmax_cross_entropy(
     labels_torch = torch.from_numpy(labels).reshape(-1)
 
     ce = SoftmaxCrossEntropy()
-    params = ce.init_params(rng)
     ce_torch = nn.CrossEntropyLoss(reduction="none")
 
-    ctx, out = ce(params, inputs, labels)
+    ctx, out = ce({}, inputs, labels)
     out_torch = ce_torch(inputs_torch, labels_torch)
 
-    grads, d_out = ce.backward(ctx, np.ones_like(inputs))
+    _, d_out = ce.backward(ctx, None)
     out_torch.sum().backward()
 
     np.testing.assert_allclose(out.reshape(-1), out_torch.detach().numpy())
