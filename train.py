@@ -2,6 +2,7 @@ import argparse
 
 import numpy as np
 from numpy.random import Generator
+from tqdm import tqdm, trange
 
 from numpitron import save_params, load_params
 from numpitron.model import Config, load_config, Transformer
@@ -75,18 +76,25 @@ def train(config: Config) -> dict:
     train_dataloader, validation_dataloader = init_dataloader(config, rng)
 
     min_loss = float("inf")
-    batches_per_epoch = train_dataloader.batches_per_epoch
 
-    for epoch in range(config.num_epochs):
-        for step, (inputs, labels) in enumerate(train_dataloader.iter_epoch()):
+    for epoch in trange(config.num_epochs, desc="Epochs"):
+
+        train_bar = tqdm(
+            enumerate(train_dataloader.iter_epoch()),
+            leave=False,
+            desc="Train (loss: N/A)",
+            total=train_dataloader.batches_per_epoch,
+        )
+
+        for _, (inputs, labels) in train_bar:
             state, parameters, train_loss = train_step(
                 model, parameters, optimizer, state, inputs, labels
             )
 
-            avg_loss = train_loss.mean()
-            print(f"{epoch} : {step}/{batches_per_epoch} - {avg_loss:.3f}")
+            train_bar.set_description(f"Train (loss: {train_loss.mean():.3f})")
+            train_bar.refresh()
 
-            if avg_loss < min_loss:
+            if train_loss.mean() < min_loss:
                 save_params(config.save_path / "parameters.npy", parameters)
                 save_params(config.save_path / "optimizer.npy", state)
 
