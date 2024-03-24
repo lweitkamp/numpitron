@@ -18,12 +18,20 @@ class Config:
     learning_rate: float
     betas: tuple[float, float]
 
-    dataset_train_path: str
-    dataset_validation_path: str
+    dataset_train_path: Path
+    dataset_validation_path: Path
 
+    save_path: Path
+
+    from_savefile: bool = False
     seed: int = 42
 
 
 def load_config(config_path: Path | str) -> Config:
     config = json.load(Path(config_path).open(mode="r"))
-    return Config(**config)
+    cfg = Config(**config)
+
+    cfg.save_path = Path(cfg.save_path)
+    cfg.dataset_train_path = Path(cfg.dataset_train_path)
+    cfg.dataset_validation_path = Path(cfg.dataset_validation_path)
+    return cfg

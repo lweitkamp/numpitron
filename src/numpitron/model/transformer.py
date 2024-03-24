@@ -100,7 +100,6 @@ class Transformer(Sequential):
         d_model: int,
         n_heads: int,
         n_layers: int,
-        tie_embeddings: bool = True,
         name: str = "Transformer",
         dtype=np.float32,
     ):
@@ -116,8 +115,6 @@ class Transformer(Sequential):
         )
         self.layers.append(nn.OutputEmbedding(d_model, vocab_size))
 
-        self.tie_embeddings = tie_embeddings
-
     def init_params(
         self, rng: Generator
     ) -> dict[
@@ -125,8 +122,7 @@ class Transformer(Sequential):
         np.ndarray,
     ]:
         params = super().init_params(rng)
-        if self.tie_embeddings:
-            params[self.layers[-1].name] = params[self.layers[0].name]
+        params[self.layers[-1].name] = params[self.layers[0].name]
         return params
 
     def forward(
