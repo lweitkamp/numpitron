@@ -145,6 +145,6 @@ class Transformer(Sequential):
 
     def backward(self, ctx: dict) -> tuple[dict, np.ndarray]:
         ce = nn.SoftmaxCrossEntropy()
-        _, d_out = ce.backward(ctx[ce.name])
+        _, d_out = ce.backward(ctx[ce.name], None)
         gradients, d_out = super().backward(ctx, d_out)
         return gradients
