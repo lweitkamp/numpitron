@@ -143,4 +143,15 @@ class Transformer(Sequential):
         ce = nn.SoftmaxCrossEntropy()
         _, d_out = ce.backward(ctx[ce.name], None)
         gradients, d_out = super().backward(ctx, d_out)
+        gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
+            "embedding"
+        ]
         return gradients
+
+    def sample(
+        self,
+        params: dict[str, np.ndarray],
+        inputs: np.ndarray,
+    ) -> np.ndarray:
+        _, logits = super().forward(params, inputs)
+        return logits

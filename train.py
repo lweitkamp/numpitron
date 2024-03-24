@@ -58,20 +58,18 @@ def train_step(model, parameters, optimizer, state, inputs, labels):
     return state, parameters, loss
 
 
-def validation_step(model, parameters, dataloader):
-    validation_loss = np.zeros((dataloader.batch_size))
-
-    for inputs, labels in dataloader.iter_epoch():
+def validation_step(model, parameters, pbar):
+    validation_loss = []
+    for _, (inputs, labels) in pbar:
         _, loss = model(parameters, inputs, labels)
-        validation_loss += loss
-
-    return validation_loss
+        validation_loss.append(loss)
+    return np.mean(validation_loss)
 
 
 def train(config: Config) -> dict:
     rng = np.random.default_rng(config.seed)
 
-    model, parameters = init_model(config, rng)
+    model, parameters = init_model(config, np.random.default_rng(555))
     optimizer, state = init_optimizer(config, parameters)
     train_dataloader, validation_dataloader = init_dataloader(config, rng)
 
@@ -86,20 +84,27 @@ def train(config: Config) -> dict:
             total=train_dataloader.batches_per_epoch,
         )
 
-        for _, (inputs, labels) in train_bar:
+        for step, (inputs, labels) in train_bar:
             state, parameters, train_loss = train_step(
                 model, parameters, optimizer, state, inputs, labels
             )
 
             train_bar.set_description(f"Train (loss: {train_loss.mean():.3f})")
             train_bar.refresh()
+            (config.save_path / "log.csv").open(mode="a").write(f"{epoch},{step},{train_loss.mean()}\n")
 
             if train_loss.mean() < min_loss:
                 save_params(config.save_path / "parameters.npy", parameters)
                 save_params(config.save_path / "optimizer.npy", state)
 
         if epoch % 5 == 0:
-            validation_loss = validation_step(model, parameters, validation_dataloader)
+            validation_bar = tqdm(
+                enumerate(validation_dataloader.iter_epoch()),
+                leave=False,
+                desc="Validation (loss: N/A)",
+                total=validation_dataloader.batches_per_epoch,
+            )
+            validation_loss = validation_step(model, parameters, validation_bar)
             print(f"{epoch} : validation loss - {validation_loss:.3f}")
 
 
