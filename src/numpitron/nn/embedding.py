@@ -16,7 +16,7 @@ class InputEmbedding(Layer):
 
     def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         params: dict[str, np.ndarray] = {
-            "embedding": rng.random((self.d_model, self.vocab_size)) * 0.02,
+            "embedding": rng.random((self.d_model, self.vocab_size)),
         }
         return {key: value.astype(self.dtype) for key, value in params.items()}
 
@@ -49,6 +49,11 @@ class OutputEmbedding(Layer):
         self, d_model: int, vocab_size: int, name="OutputEmbedding", dtype=np.float32
     ):
         super().__init__(name=name, dtype=dtype)
+        self.d_model = d_model
+        self.vocab_size = vocab_size
+
+    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
+        return {}
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
@@ -60,9 +65,7 @@ class OutputEmbedding(Layer):
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """Perform a backward pass, calculating the gradients."""
-        gradients = {
-            "embedding": np.einsum("bsd, bsv -> dv", ctx["inputs"], d_out)
-        }
+        gradients = {"embedding": np.einsum("bsd, bsv -> dv", ctx["inputs"], d_out)}
         d_out = d_out @ ctx["embedding"].T
         return gradients, d_out
 
