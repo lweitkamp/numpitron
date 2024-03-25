@@ -1,3 +1,5 @@
+"""A simple configuration dataclass that can load from a JSON file."""
+
 import dataclasses
 import json
 from pathlib import Path
@@ -28,7 +30,17 @@ class Config:
 
 
 def load_config(config_path: Path | str) -> Config:
-    config = json.load(Path(config_path).open(mode="r"))
+    """Create a Config dataclass from a config path.
+    
+    Args:
+        config_path (Path or str): Location to a JSON config file.
+    
+    Returns:
+        Configuration dataclass (Config).
+    """
+    with Path(config_path).open(mode="r", encoding="utf-8") as f:
+        config = json.load(f)
+
     cfg = Config(**config)
 
     cfg.save_path = Path(cfg.save_path)

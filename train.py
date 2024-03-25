@@ -1,3 +1,4 @@
+"""A simple training script."""
 import argparse
 
 import numpy as np
@@ -11,6 +12,7 @@ from numpitron.data import DataLoader
 
 
 def init_model(config: Config, rng: Generator):
+    """Initialize the model and parameters, load from saved if possible."""
     model = Transformer(
         config.vocab_size,
         config.seq_len,
@@ -27,6 +29,7 @@ def init_model(config: Config, rng: Generator):
 
 
 def init_optimizer(config: Config, parameters: dict):
+    """Initialize the optimizer and state, load from saved if possible."""
     optimizer = Adam(config.learning_rate, config.betas)
     if config.from_savefile:
         state = load_params(config.save_path / "optimizer.npy")
@@ -36,22 +39,24 @@ def init_optimizer(config: Config, parameters: dict):
 
 
 def init_dataloader(config: Config, rng: Generator):
+    """Create the train and validation data loaders."""
     train_dataloader = DataLoader(
         dataset_path=config.dataset_train_path,
-        rng=rng,
         seq_len=config.seq_len,
         batch_size=config.batch_size,
+        rng=rng,
     )
     validation_dataloader = DataLoader(
         dataset_path=config.dataset_validation_path,
-        rng=rng,
         seq_len=config.seq_len,
         batch_size=config.batch_size,
+        rng=rng,
     )
     return train_dataloader, validation_dataloader
 
 
 def train_step(model, parameters, optimizer, state, inputs, labels):
+    """A single forward pass, calculating the gradients & updating parameters."""
     ctx, loss = model(parameters, inputs, labels)
     gradients = model.backward(ctx)
     state, parameters = optimizer.step(state, gradients, parameters)
@@ -59,6 +64,7 @@ def train_step(model, parameters, optimizer, state, inputs, labels):
 
 
 def validation_step(model, parameters, pbar):
+    """An iteration of the validation dataset."""
     validation_loss = []
     for _, (inputs, labels) in pbar:
         _, loss = model(parameters, inputs, labels)
@@ -76,7 +82,6 @@ def train(config: Config) -> dict:
     min_loss = float("inf")
 
     for epoch in trange(config.num_epochs, desc="Epochs"):
-
         train_bar = tqdm(
             enumerate(train_dataloader.iter_epoch()),
             leave=False,
@@ -91,7 +96,9 @@ def train(config: Config) -> dict:
 
             train_bar.set_description(f"Train (loss: {train_loss.mean():.3f})")
             train_bar.refresh()
-            (config.save_path / "log.csv").open(mode="a").write(f"{epoch},{step},{train_loss.mean()}\n")
+
+            with (config.save_path / "log.csv").open(mode="a", encoding="utf-8") as f:
+                f.write(f"{epoch},{step},{train_loss.mean()}\n")
 
             if train_loss.mean() < min_loss:
                 save_params(config.save_path / "parameters.npy", parameters)
@@ -117,5 +124,5 @@ if __name__ == "__main__":
         help="Path to json config file.",
     )
     args = parser.parse_args()
-    config = load_config(args.config_path)
-    train(config)
+    cfg = load_config(args.config_path)
+    train(cfg)

@@ -44,7 +44,10 @@ class SoftmaxCrossEntropy(Layer):
         return ctx, loss
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        """Backwards pass of the softmax-ce loss."""
+        """Backwards pass of the softmax-ce loss.
+        
+        @TODO(laurens): maybe refactor loss functions to a Loss clas or so.
+        """
         batch_size, seq_len, vocab_size = ctx["inputs"].shape
 
         logits = ctx["inputs"].reshape(batch_size * seq_len, vocab_size)

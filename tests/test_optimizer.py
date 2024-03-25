@@ -59,4 +59,6 @@ def test_adam_linear(
     np.testing.assert_allclose(
         params["weight"].T, linear_torch.weight.detach().numpy(), atol=1e-4
     )
-    np.testing.assert_allclose(params["bias"], linear_torch.bias.detach().numpy(), atol=1e-4)
+    np.testing.assert_allclose(
+        params["bias"], linear_torch.bias.detach().numpy(), atol=1e-4
+    )

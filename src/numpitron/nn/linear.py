@@ -11,6 +11,8 @@ def to_tuple(dim: tuple | int) -> tuple[int, ...]:
 
 
 class Linear(Layer):
+    """A generalized linear layer. Works on integer and tuple dimensions."""
+
     def __init__(
         self,
         input_dim: tuple | int,

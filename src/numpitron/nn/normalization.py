@@ -48,7 +48,6 @@ class LayerNorm(Layer):
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """The most straightforward reference is surpisingly from the Triton tutorial
         https://triton-lang.org/main/getting-started/tutorials/05-layer-norm.html."""
-
         inputs_normed = (ctx["inputs"] - ctx["mean"]) / np.sqrt(ctx["var"] + self.eps)
 
         gradients = {

@@ -6,6 +6,10 @@ from numpitron.nn.core import Layer, Sequential
 
 
 class TransformerBlock(Layer):
+    """Simple transformer block with
+    attn -> norm -> res -> mlp -> norm -> res.
+    """
+
     def __init__(
         self,
         d_model: int,
@@ -18,11 +22,14 @@ class TransformerBlock(Layer):
         self.n_heads = n_heads
 
         self.attention = nn.Attention(
-            self.d_model, self.n_heads, self.d_model // self.n_heads
+            self.d_model,
+            self.n_heads,
+            self.d_model // self.n_heads,
+            dtype=dtype,
         )
-        self.norm1 = nn.LayerNorm(self.d_model)
-        self.mlp = nn.MLP(self.d_model, self.d_model * 4)
-        self.norm2 = nn.LayerNorm(self.d_model)
+        self.norm1 = nn.LayerNorm(self.d_model, dtype=dtype)
+        self.mlp = nn.MLP(self.d_model, self.d_model * 4, dtype=dtype)
+        self.norm2 = nn.LayerNorm(self.d_model, dtype=dtype)
 
     def init_params(
         self, rng: Generator
@@ -30,10 +37,7 @@ class TransformerBlock(Layer):
         str,
         np.ndarray,
     ]:
-        params: dict[
-            str,
-            np.ndarray,
-        ] = {
+        params = {
             "attention": self.attention.init_params(rng),
             "norm1": self.norm1.init_params(rng),
             "mlp": self.mlp.init_params(rng),
@@ -93,6 +97,10 @@ class TransformerBlock(Layer):
 
 
 class Transformer(Sequential):
+    """Transformer model.
+    @TODO(laurens): might want to refactor this to be a Model class or so.
+    """
+
     def __init__(
         self,
         vocab_size: int,
@@ -105,15 +113,17 @@ class Transformer(Sequential):
     ):
         super().__init__(name=name, dtype=dtype)
 
-        self.layers.append(nn.InputEmbedding(d_model, vocab_size))
-        self.layers.append(nn.PositionalEmbedding(d_model, seq_len))
+        self.layers.append(nn.InputEmbedding(d_model, vocab_size, dtype=dtype))
+        self.layers.append(nn.PositionalEmbedding(d_model, seq_len, dtype=dtype))
         self.layers.extend(
             [
-                TransformerBlock(d_model, n_heads, name=f"TransformerBlock_{i}")
+                TransformerBlock(
+                    d_model, n_heads, name=f"TransformerBlock_{i}", dtype=dtype
+                )
                 for i in range(n_layers)
             ]
         )
-        self.layers.append(nn.OutputEmbedding(d_model, vocab_size))
+        self.layers.append(nn.OutputEmbedding(d_model, vocab_size, dtype=dtype))
 
     def init_params(
         self, rng: Generator

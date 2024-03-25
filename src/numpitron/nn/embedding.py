@@ -26,7 +26,9 @@ class InputEmbedding(Layer):
         """Given an embedding table and input tokens, embed the tokens.
 
         Arguments:
-            tokens (B, S): A batch (B) of sequences (S) of integer tokens.
+            params (dict[str, np.ndarray]): parameters with key 'embedding'
+                present.
+            inputs (np.ndarray): Input tokens of type int32.
 
         Returns:
             Token embeddings.

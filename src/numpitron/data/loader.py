@@ -2,20 +2,24 @@
 from pathlib import Path
 
 import numpy as np
+from numpy.random import Generator
 
 
 class DataLoader:
     def __init__(
         self,
         dataset_path: str | Path,
-        rng,
         seq_len: int,
         batch_size: int,
+        rng: Generator,
     ):
         """
 
         Args:
             dataset_path (str | Path): Path to tokenized data.
+            seq_len (int): Maximum sequence length per batch.
+            batch_size (int): Number of batches to sample.
+            rng (Generator): NumPy random number generator.
         """
         # Convert to numpy integers.
         self.dataset_path = dataset_path
@@ -30,6 +34,11 @@ class DataLoader:
         self.seq_range = np.arange(seq_len)
 
     def iter_epoch(self):
+        """Go through one iteration of the dataset.
+        
+        Returns:
+            An iterable dataset.
+        """
         batch_idx = 0
         data = np.memmap(self.dataset_path, dtype=np.uint16, mode='r')
         while batch_idx <= self.batches_per_epoch:
