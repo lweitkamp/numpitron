@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Adam:
-    """Adam optimizer, keeps track of momentum and velocity of gradients."""
+    """Adam optimizer, keeps track of momentum and variance of gradients."""
 
     def __init__(
         self,
