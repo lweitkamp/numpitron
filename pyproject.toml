@@ -19,6 +19,11 @@ dependencies = [
     "mpi4py==3.1.4",
     "tqdm==4.66.2"
 ]
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "torch>=2.1.0"
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

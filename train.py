@@ -1,5 +1,6 @@
 """A simple training script."""
 import argparse
+from pathlib import Path
 
 import numpy as np
 from numpy.random import Generator
@@ -8,7 +9,7 @@ from tqdm import tqdm, trange
 from numpitron import save_params, load_params
 from numpitron.model import Config, load_config, Transformer
 from numpitron.optimizer import Adam
-from numpitron.data import DataLoader
+from numpitron.dataloader import get_dataloader
 
 
 def init_model(config: Config, rng: Generator):
@@ -38,23 +39,6 @@ def init_optimizer(config: Config, parameters: dict):
     return optimizer, state
 
 
-def init_dataloader(config: Config, rng: Generator):
-    """Create the train and validation data loaders."""
-    train_dataloader = DataLoader(
-        dataset_path=config.dataset_train_path,
-        seq_len=config.seq_len,
-        batch_size=config.batch_size,
-        rng=rng,
-    )
-    validation_dataloader = DataLoader(
-        dataset_path=config.dataset_validation_path,
-        seq_len=config.seq_len,
-        batch_size=config.batch_size,
-        rng=rng,
-    )
-    return train_dataloader, validation_dataloader
-
-
 def train_step(model, parameters, optimizer, state, inputs, labels):
     """A single forward pass, calculating the gradients & updating parameters."""
     ctx, loss = model(parameters, inputs, labels)
@@ -72,12 +56,12 @@ def validation_step(model, parameters, pbar):
     return np.mean(validation_loss)
 
 
-def train(config: Config) -> dict:
+def train(config: Config, save_path: Path) -> dict:
     rng = np.random.default_rng(config.seed)
 
     model, parameters = init_model(config, np.random.default_rng(555))
     optimizer, state = init_optimizer(config, parameters)
-    train_dataloader, validation_dataloader = init_dataloader(config, rng)
+    train_dataloader, validation_dataloader = get_dataloader(config, rng)
 
     min_loss = float("inf")
 
@@ -123,6 +107,12 @@ if __name__ == "__main__":
         default="examples/transformer.json",
         help="Path to json config file.",
     )
+    parser.add_argument(
+        "--save-path",
+        type=str,
+        default="examples/",
+        help="Path to json config file.",
+    )
     args = parser.parse_args()
     cfg = load_config(args.config_path)
-    train(cfg)
+    train(cfg, args.save_path)

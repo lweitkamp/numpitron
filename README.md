@@ -6,16 +6,13 @@ Simplistic small language model 3D-parallelism training using NumPy and MPI. Ins
 
 We support the following:
 - Single Core Training
+
+Next on the list is:
 - Tensor Parallelization (Megatron-LM style)
 
 We will soon support the following:
-- Sequence Parallelization (Megatron-LM style)
 - DataParallel
-
-And on the roadmap is:
-- Ring Attention
 - ZeRO
-
 
 
 # Installation
@@ -26,19 +23,22 @@ pip install -e .
 ```
 
 # Examples
+First, download the shakespare dataset: and place it in the `examples` folder.
 
 You can run a sample character level training run on the shakespeare corpus using:
 ```bash
-python train.py --save_dir examples
+python train.py --config-path examples/transformer.json
 ```
 
-This will save both the model (`examples/model.state`) and the optimizer (`examples/optimizer.state`) to be used for sampling.
+This will save both the model (`examples/model.npy`) and the optimizer (`examples/optimizer.npy`) to be used for sampling.
+
+
 Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80.
 I would not recommend training from scratch but to download  the states from [google drive URL] to the `examples` folder.
 
-And run a sample generation using:
+Run a sample generation using:
 ```bash
-python sample.py --model_dir examples/model.state
+python sample.py --model_dir examples/model.npy
 ```
 
 With the state loaded from google drive we can generate the following text:

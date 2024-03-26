@@ -4,6 +4,25 @@ from pathlib import Path
 import numpy as np
 from numpy.random import Generator
 
+from numpitron.model import Config
+
+
+def get_dataloader(config: Config, rng: Generator):
+    """Create the train and validation data loaders."""
+    train_dataloader = DataLoader(
+        dataset_path=config.dataset_train_path,
+        seq_len=config.seq_len,
+        batch_size=config.batch_size,
+        rng=rng,
+    )
+    validation_dataloader = DataLoader(
+        dataset_path=config.dataset_validation_path,
+        seq_len=config.seq_len,
+        batch_size=config.batch_size,
+        rng=rng,
+    )
+    return train_dataloader, validation_dataloader
+
 
 class DataLoader:
     def __init__(
