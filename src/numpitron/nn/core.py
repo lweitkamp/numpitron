@@ -9,11 +9,11 @@ from numpy.random import Generator
 class Layer(ABC):
     """Layer defines that a layer should have a forward path annd a backward
     path, alongside a way to init a layer with no parameters by default.
-    
+
     Args:
         name (str): name of the layer, crucial for sequential models.
         dtype (np.dtype): data type the layer works on.
-    
+
     """
 
     def __init__(self, name: str, dtype):
@@ -22,10 +22,10 @@ class Layer(ABC):
 
     def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         """Initialize this layer's weights. Default has no weights.
-        
+
         A weight is a dictionary of possible sub-dictionaries that
         lead to numpy arrays, denoted here as a tree of parameters typically.
-        
+
         Args:
             rng (Generator): NumPy random number generator.
         """
@@ -77,7 +77,7 @@ class Sequential(Layer):
 
 def save_params(save_path: Path | str, params: dict) -> None:
     """Store a tree of parameters in pickle form.
-    
+
     Args:
         save_path (Path or str): Path to save to.
         params (dict): tree of parameters to save.
@@ -87,10 +87,10 @@ def save_params(save_path: Path | str, params: dict) -> None:
 
 def load_params(load_path: Path | str) -> dict:
     """Load a tree of parameters in pickle form.
-    
+
     Args:
         load_path (Path or str): Path to load pickle from.
-    
+
     Returns:
         tree of parameters.
     """

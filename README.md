@@ -27,21 +27,20 @@ First, download the shakespare dataset: and place it in the `examples` folder.
 
 You can run a sample character level training run on the shakespeare corpus using:
 ```bash
-python train.py --config-path examples/transformer.json
+python train.py --config-path examples/shakespeare_transformer.json --save-path examples
 ```
 
-This will save both the model (`examples/model.npy`) and the optimizer (`examples/optimizer.npy`) to be used for sampling.
+This will save the parameters and optimizer state at `examples/shakespeare_Transformer.npy` to be used for sampling.
 
-
-Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80.
-I would not recommend training from scratch but to download  the states from [google drive URL] to the `examples` folder.
+Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80[^1].
+I would not recommend training from scratch but to download the state from [google drive URL] to the `examples` folder.
 
 Run a sample generation using:
 ```bash
-python sample.py --model_dir examples/model.npy
+python sample.py --config-path examples/shakespeare_transformer.json --state-path examples/shakespeare_Transformer.npy
 ```
 
-With the state loaded from google drive we can generate the following text:
+With the pretrained model you would expect to see the following:
 
 ```
 DUSHAM:
@@ -65,3 +64,5 @@ This his ruch dand you palk mee ro.
 
 Maresed or ble spake the and it ters.
 ```
+
+[^1]: This matches Karpathy's log loss at same model size at his [NanoGPT](https://github.com/karpathy/nanoGPT?tab=readme-ov-file#quick-start) repo.

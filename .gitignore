@@ -163,3 +163,4 @@ cython_debug/
 *.npy
 *.bin
 *.pkl
+*.csv

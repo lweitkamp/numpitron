@@ -26,8 +26,7 @@ class Adam:
         state = {
             "learning_rate": self.learning_rate,
             "timestep": 0,
-            "beta0": self.betas[0],
-            "beta1": self.betas[1],
+            "betas": self.betas,
             "eps": self.eps,
             "state": _add_hparams(parameters),
         }
@@ -37,8 +36,7 @@ class Adam:
         self, optimizer_state: dict, gradients: dict, parameters: dict
     ) -> tuple[dict, dict]:
         lr = optimizer_state["learning_rate"]
-        b1 = optimizer_state["beta0"]
-        b2 = optimizer_state["beta1"]
+        b1, b2 = optimizer_state["betas"]
         timestep = optimizer_state["timestep"] + 1
         eps = optimizer_state["eps"]
 
@@ -67,8 +65,7 @@ class Adam:
         new_optimizer_state = {
             "learning_rate": lr,
             "timestep": timestep,
-            "beta0": b1,
-            "beta1": b2,
+            "betas": optimizer_state["betas"],
             "eps": eps,
             "state": new_optimizer_state,
         }

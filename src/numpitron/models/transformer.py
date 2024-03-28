@@ -97,9 +97,7 @@ class TransformerBlock(Layer):
 
 
 class Transformer(Sequential):
-    """Transformer model.
-    @TODO(laurens): might want to refactor this to be a Model class or so.
-    """
+    """Transformer model."""
 
     def __init__(
         self,
@@ -112,6 +110,11 @@ class Transformer(Sequential):
         dtype=np.float32,
     ):
         super().__init__(name=name, dtype=dtype)
+        self.vocab_size = vocab_size
+        self.seq_len = seq_len
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.n_layers = n_layers
 
         self.layers.append(nn.InputEmbedding(d_model, vocab_size, dtype=dtype))
         self.layers.append(nn.PositionalEmbedding(d_model, seq_len, dtype=dtype))
@@ -134,34 +137,3 @@ class Transformer(Sequential):
         params = super().init_params(rng)
         params[self.layers[-1].name] = params[self.layers[0].name]
         return params
-
-    def forward(
-        self,
-        params: dict[str, np.ndarray],
-        inputs: np.ndarray,
-        labels: np.ndarray,
-    ) -> tuple[dict, np.ndarray]:
-        ce = nn.SoftmaxCrossEntropy()
-
-        ctx, logits = super().forward(params, inputs)
-        ctx_cross_entorpy, loss = ce.forward(params, logits, labels)
-
-        ctx[ce.name] = ctx_cross_entorpy
-        return ctx, loss
-
-    def backward(self, ctx: dict) -> tuple[dict, np.ndarray]:
-        ce = nn.SoftmaxCrossEntropy()
-        _, d_out = ce.backward(ctx[ce.name], None)
-        gradients, d_out = super().backward(ctx, d_out)
-        gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
-            "embedding"
-        ]
-        return gradients
-
-    def sample(
-        self,
-        params: dict[str, np.ndarray],
-        inputs: np.ndarray,
-    ) -> np.ndarray:
-        _, logits = super().forward(params, inputs)
-        return logits

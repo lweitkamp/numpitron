@@ -5,7 +5,7 @@ from numpy.random import Generator
 from torch import nn, optim
 from torch.nn import Parameter
 
-from numpitron.optimizer import Adam
+from numpitron.optimizers import Adam
 from numpitron.nn import Linear
 
 

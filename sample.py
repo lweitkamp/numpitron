@@ -1,58 +1,62 @@
 import argparse
 from pathlib import Path
+import json
+
+from numpy.random import Generator
+from tqdm import trange
 
 import numpy as np
-from numpy.random import Generator
+from numpitron import nn, models, data
+from numpitron.nn.core import Sequential
 
-from numpitron import models, nn, load_params
 
-
-def sample(
-    model,
-    params,
-    initial_prompt: str,
-    meta: dict,
-    max_len: int,
-    seq_len: int,
+def generate(
+    state: models.State,
+    model: Sequential,
+    tokenizer: data.Tokenizer,
+    num_samples: int,
     rng: Generator,
+    seq_len: int,
+    initial_prompt: str = "\n",
     temperature: float = 1.0,
-    top_k: int | None = None,
-):
+    top_k: int = 5,
+) -> str:
+    """Sample tokens from a model."""
     predicted_text = ""
-    tokens = [meta["stoi"][x] for x in initial_prompt]
+    tokens = tokenizer.encode(initial_prompt)
 
-    for _ in range(max_len):
+    for _ in trange(num_samples):
         tokens = tokens[-seq_len:]
-        _, logits = model(params, np.asarray([tokens]))
+        _, logits = model(state.parameters, np.asarray([tokens]))
         probabilities = nn.softmax(logits[0, -1] / temperature)
 
         next_token = np.argmax(rng.multinomial(n=1, pvals=probabilities))
         tokens.append(next_token)
 
-        predicted_text += meta["itos"][next_token]
+        predicted_text += tokenizer.decode([next_token])
 
-    print(f"\033[1m{initial_prompt}\033[0m{predicted_text}")
+    return f"\033[1m{initial_prompt}\033[0m{predicted_text}"
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config-path",
+        "--state-path",
         type=Path,
-        default="examples/transformer.json",
+        default="examples/shakespeare_Transformer.npy",
+        help="Path to numpy pickled state file.",
+    )
+    parser.add_argument(
+        "--config-path",
+        type=str,
+        default="examples/shakespeare_transformer.json",
         help="Path to json config file.",
     )
     parser.add_argument(
-        "--model-path",
+        "--tokenizer-path",
         type=Path,
-        default="examples/transformer.npy",
-        help="Path to numpy pickled model file.",
-    )
-    parser.add_argument(
-        "--vocab-meta-path",
-        type=Path,
-        default="examples/meta.pkl",
-        help="Path to metadata for vocab.",
+        default="examples/shakespeare_tokenizer.json",
+        help="Path to JSON tokenizer file.",
     )
     parser.add_argument(
         "--initial-prompt",
@@ -61,35 +65,44 @@ if __name__ == "__main__":
         help="Starting prompt.",
     )
     parser.add_argument(
-        "--sample-length",
+        "--num-samples",
         type=int,
-        default=500,
+        default=250,
         help="Number of tokens to sample."
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Control the generation temperature."
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=5,
+        help="Sample only from top-K most likely tokens."
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="RNG seed."
     )
     args = parser.parse_args()
 
-    config = models.load_config(args.config_path)
+    with open(args.config_path, mode="r", encoding="utf-8") as f:
+        cfg = json.load(f)
 
-    transformer = models.Transformer(
-        vocab_size=config.vocab_size,
-        seq_len=config.seq_len,
-        d_model=config.d_model,
-        n_heads=config.n_heads,
-        n_layers=config.n_layers,
-        dtype=np.float32,
+    output = generate(
+        state=models.State.from_pretrained(args.state_path),
+        model=models.from_config(cfg),
+        tokenizer=data.Tokenizer.from_pretrained(args.tokenizer_path),
+        num_samples=args.num_samples,
+        rng=np.random.default_rng(args.seed),
+        seq_len=cfg["model_config"]["seq_len"],
+        initial_prompt=args.initial_prompt,
+        temperature=args.temperature,
+        top_k=args.top_k,
     )
-    params = load_params(args.model_path)
 
-    vocab_meta = np.load(args.vocab_meta_path, allow_pickle=True)
-
-    sample(
-        transformer,
-        params,
-        args.initial_prompt,
-        vocab_meta,
-        args.sample_length,
-        config.seq_len,
-        rng=np.random.default_rng(config.seed),
-        temperature=1.0,
-        top_k=5,
-    )
+    print(output)
