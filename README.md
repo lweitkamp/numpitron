@@ -6,16 +6,10 @@ This library is meant as a learning experience for implementing distributed trai
 
 # Core Features
 
-We support the following:
-- Single Core Training
-
-Next on the list is:
-- Tensor Parallelization (Megatron-LM style)
-
-We will soon support the following:
-- DataParallel
-- ZeRO
-
+-[x] Single Core
+-[ ] Tensor Parallel
+-[ ] Distributed Data Parallel
+-[ ] ZeRO 1 - 2 - ?3?
 
 # Installation
 ```bash
