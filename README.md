@@ -9,7 +9,9 @@ This library is meant as a learning experience for implementing distributed trai
 * [x] Single Core 
 * [ ] Tensor Parallel 
 * [ ] Distributed Data Parallel 
-* [ ] ZeRO 1 - 2 - ?3?
+* [ ] ZeRO 1 - ?2? - ?3?
+* [ ] Sequence Parallel
+* [ ] Token Parallel
 
 # Installation
 ```bash
