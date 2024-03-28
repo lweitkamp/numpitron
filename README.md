@@ -2,6 +2,8 @@
 
 Simplistic small language model 3D-parallelism training using NumPy and MPI. Inspired by [Megatron-LM](https://github.com/NVIDIA/Megatron-LM) and [Nanotron](https://github.com/huggingface/nanotron) and based only on [NumPy](https://numpy.org) and [MPI for Python](https://mpi4py.readthedocs.io), NuMPItron offers a variety of ways to train your Transformer at a snail's pace.
 
+This library is meant as a learning experience for implementing distributed training strategies. Each added strategy will be discussed in detail in blog posts.
+
 # Core Features
 
 We support the following:
