@@ -40,29 +40,16 @@ Run a sample generation using:
 python sample.py --config-path examples/shakespeare_transformer.json --state-path examples/shakespeare_Transformer.npy
 ```
 
-With the pretrained model you would expect to see the following:
+With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
 
 ```
-DUSHAM:
-In the good igratfus' hast. Arbly shink? it; leeave
-To himan in peearin: hand provone exfor!
-
-KING bractals an the sa a have my seee hear:
-Theit belse.
-
-DUKE VINCENTIUS:
-Your time?
-
-DUKE VINCENTIO:
-Mhers acre:
-Jore love shoried you shakle oS:
-Of Enord, my the the will teant:
-Onphy our shall Forth;
-Andseruld, must laught, in a devommethaing pare be ans
-Int wa so fortued wint mys thee on holl you The rifen quaught,
-This his ruch dand you palk mee ro.
-
-Maresed or ble spake the and it ters.
+Somaging:
+I am as I, Wath I drows Bolingbourable is the equittion our to me housand;
+My sound, there the speech your thether is
+What is blessixes, gard carrer are prince of All,
+Has enluckin. Theer betther,
+And live might! this subjectt
+to fill they
 ```
 
 [^1]: This matches Karpathy's log loss at same model size at his [NanoGPT](https://github.com/karpathy/nanoGPT?tab=readme-ov-file#quick-start) repo.
