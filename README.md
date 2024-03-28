@@ -6,10 +6,10 @@ This library is meant as a learning experience for implementing distributed trai
 
 # Core Features
 
--[x] Single Core
--[ ] Tensor Parallel
--[ ] Distributed Data Parallel
--[ ] ZeRO 1 - 2 - ?3?
+* [x] Single Core 
+* [ ] Tensor Parallel 
+* [ ] Distributed Data Parallel 
+* [ ] ZeRO 1 - 2 - ?3?
 
 # Installation
 ```bash
