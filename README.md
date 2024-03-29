@@ -15,7 +15,7 @@ This library is meant as a learning experience for implementing distributed trai
 
 # Installation
 ```bash
-git clone git@github.com:lweitkamp/numpitron.git
+git clone https://github.com/lweitkamp/numpitron
 cd numpitron
 pip install -e .
 ```
@@ -33,7 +33,7 @@ python train.py \
 This will save the parameters and optimizer state at `examples/shakespeare_Transformer.npy` to be used for sampling.
 
 Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80[^1].
-I would not recommend training from scratch but to download the state from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) to the `examples` folder.
+I would not recommend training from scratch but to download the state `shakespeare_Transformer.npy` from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) to the `examples` folder.
 
 Run a sample generation using:
 ```bash
