@@ -20,6 +20,12 @@ cd numpitron
 pip install -e .
 ```
 
+If you want to additionally run the unit tests:
+```bash
+pip install -e .[dev]
+pytest tests
+```
+
 # Examples
 First, download the shakespare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `examples` folder.
 
