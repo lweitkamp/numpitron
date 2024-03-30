@@ -2,16 +2,19 @@
 
 Simplistic small language model 3D-parallelism training using NumPy and MPI. Inspired by [Megatron-LM](https://github.com/NVIDIA/Megatron-LM) and [Nanotron](https://github.com/huggingface/nanotron) and based only on [NumPy](https://numpy.org) and [MPI for Python](https://mpi4py.readthedocs.io), NuMPItron offers a variety of ways to train your Transformer at a snail's pace.
 
-This library is meant as a learning experience for implementing distributed training strategies. If you want to follow along, make sure to check out my [blog](https://lweitkamp.github.io/).
+This library is meant as a learning experience for implementing distributed training strategies. Ideally the library will be capable of both 3D parallelism (TP + MP + DP) and ZeRO. If you want to follow along, make sure to check out my [blog](https://lweitkamp.github.io/).
 
-# Core Features
+# Feature Roadmap
+Core functionality will be 3D parallel and ZeRO stage 1 since these can be combined in general:
 
 * [x] Single Core 
 * [ ] Tensor Parallel 
 * [ ] Distributed Data Parallel 
-* [ ] ZeRO 1 - ?2? - ?3?
-* [ ] Sequence Parallel
-* [ ] Token Parallel
+* [ ] Pipeline Parallel
+* [ ] ZeRO
+
+When/if this is done, we can look at sequence parallel strategies.
+
 
 # Installation
 ```bash
