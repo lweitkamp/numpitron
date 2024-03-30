@@ -1,3 +1,5 @@
+"""Test the distributed communications library. If you want to test it, ensure
+that you run it with n>1 processes."""
 import numpy as np
 import pytest
 
@@ -6,8 +8,6 @@ import numpitron.distributed as npdist
 
 RANK = npdist.get_rank()
 WORLD_SIZE = npdist.world_size()
-
-assert WORLD_SIZE > 1, "Run these unit tests at least with n>1 processes."
 
 
 @pytest.mark.parametrize(
