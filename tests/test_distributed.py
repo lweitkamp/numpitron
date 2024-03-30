@@ -42,7 +42,10 @@ def test_all_reduce(
 
 
 def test_all_to_all() -> None:
-    raise Exception()
+    source_tensor = np.zeros((WORLD_SIZE,)) + RANK
+    destination_tensor = np.zeros_like(source_tensor)
+    npdist.all_to_all(source_tensor, destination_tensor)
+    np.testing.assert_equal(destination_tensor, np.arange(WORLD_SIZE))
 
 
 def test_barrier() -> None:
