@@ -18,4 +18,4 @@ def send(
         dst (int): Destination to send tensor to.
         tag (int): Tag to indicate type of message (if needed).
     """
-    MPI_COMM.send(source_tensor, dst, tag=tag)
+    MPI_COMM.Send(source_tensor, dst, tag=tag)
