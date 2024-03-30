@@ -1,10 +1,33 @@
 import numpy as np
 from mpi4py import MPI
 
+from numpitron.distributed.world import world_size, get_rank
 
 MPI_COMM = MPI.COMM_WORLD
 
 
-def gather():
-    #TODO(@Laurens): implement gather.
-    raise NotImplementedError()
+def gather(
+    source_tensor: np.ndarray,
+    destination_tensor: np.ndarray,
+    dst: int = 0,
+    axis: int = -1,
+) -> None:
+    """Gather source tensor from all processes and store it in destination
+    tensor.
+    
+    Args:
+        source_tensor (np.ndarray): Tensor to store result in.
+        destination_tensor (np.ndarray): Tensor to store result in.
+        dst (int): Rank on which we gather the data.
+        axis (int): The axis on which the tensor needs to be concatenated.
+    """
+    receiving_buffer = np.empty(np.prod(destination_tensor.shape))
+    MPI_COMM.Gatherv(source_tensor, receiving_buffer, root=dst)
+
+    if get_rank() == dst:
+        receiving_buffer = np.split(receiving_buffer, world_size(), axis)
+        receiving_buffer = np.concatenate(
+            [x.reshape(source_tensor.shape) for x in receiving_buffer],
+            axis=-1,
+        )
+        np.copyto(destination_tensor, receiving_buffer)

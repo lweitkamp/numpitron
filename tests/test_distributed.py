@@ -5,7 +5,6 @@ import pytest
 
 import numpitron.distributed as npdist
 
-
 RANK = npdist.get_rank()
 WORLD_SIZE = npdist.world_size()
 
@@ -18,8 +17,8 @@ def test_all_gather(
     batch_size: int,
     seq_len: int,
 ) -> None:
-    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
     source_tensor = np.zeros((batch_size, seq_len, 1)) + RANK
+    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
 
     npdist.all_gather(source_tensor, destination_tensor, axis=-1)
 
@@ -74,8 +73,24 @@ def test_broadcast(
     np.testing.assert_array_equal(tensor, expected_tensor)
 
 
-def test_gather() -> None:
-    raise Exception()
+@pytest.mark.parametrize(
+    "batch_size,seq_len",
+    [(1, 2), (2, 4)],
+)
+def test_gather(
+    batch_size: int,
+    seq_len: int,
+) -> None:
+    source_tensor = np.zeros((batch_size, seq_len, 1)) + RANK
+    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
+
+    npdist.gather(source_tensor, destination_tensor, dst=0, axis=-1)
+
+    if RANK == 0:
+        assert set(np.unique(destination_tensor)) == set(range(WORLD_SIZE))
+    
+    if RANK == 1:
+        np.testing.assert_equal(destination_tensor, np.zeros_like(destination_tensor))
 
 
 def rest_reduce_scatter() -> None:
