@@ -7,6 +7,8 @@ import numpitron.distributed as npdist
 RANK = npdist.get_rank()
 WORLD_SIZE = npdist.world_size()
 
+assert WORLD_SIZE > 1, "Run these unit tests at least with n>1 processes."
+
 
 @pytest.mark.parametrize(
     "batch_size,seq_len",
@@ -127,15 +129,15 @@ def test_send_recv(
     seq_len: int,
     d_model: int,
 ) -> None:
-    source_tensor = np.zeros((batch_size,)) + 1
+    source_tensor = np.ones((batch_size, seq_len, d_model))
     destination_tensor = np.zeros_like(source_tensor)
 
     if RANK == 0:
-        npdist.send(source_tensor, dst=0)
+        npdist.send(source_tensor, dst=1)
 
-    if RANK == 0:
+    if RANK == 1:
         npdist.recv(destination_tensor, src=0)
         np.testing.assert_equal(source_tensor, destination_tensor)
 
-    # if RANK == 0:
-    #     np.testing.assert_equal(destination_tensor, np.zeros_like(source_tensor))
+    if RANK == 0:
+        np.testing.assert_equal(destination_tensor, np.zeros_like(source_tensor))
