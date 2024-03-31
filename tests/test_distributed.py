@@ -48,10 +48,6 @@ def test_all_to_all() -> None:
     np.testing.assert_equal(destination_tensor, np.arange(WORLD_SIZE))
 
 
-def test_barrier() -> None:
-    raise Exception()
-
-
 @pytest.mark.parametrize(
     "batch_size,seq_len,d_model",
     [(1, 2, 4), (2, 4, 8)],
@@ -151,11 +147,11 @@ def test_send_recv(
     destination_tensor = np.zeros_like(source_tensor)
 
     if RANK == 0:
-        npdist.send(source_tensor, dst=1)
+        npdist.send(source_tensor, dst=WORLD_SIZE - 1)
 
-    if RANK == 1:
+    if RANK == WORLD_SIZE - 1:
         npdist.recv(destination_tensor, src=0)
         np.testing.assert_equal(source_tensor, destination_tensor)
 
-    if RANK == 0:
+    if RANK == 0 and RANK != WORLD_SIZE - 1:
         np.testing.assert_equal(destination_tensor, np.zeros_like(source_tensor))
