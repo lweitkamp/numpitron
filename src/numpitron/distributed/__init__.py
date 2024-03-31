@@ -2,7 +2,6 @@
 from numpitron.distributed.all_gather import all_gather
 from numpitron.distributed.all_reduce import all_reduce
 from numpitron.distributed.all_to_all import all_to_all
-from numpitron.distributed.barrier import barrier
 from numpitron.distributed.broadcast import broadcast
 from numpitron.distributed.gather import gather
 from numpitron.distributed.recv import recv
