@@ -2,11 +2,10 @@ import numpy as np
 from mpi4py import MPI
 
 
-MPI_COMM = MPI.COMM_WORLD
-
 def all_to_all(
     source_tensor: np.ndarray,
     destination_tensor: np.ndarray,
+    comm: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> None:
     """Scatter the source tensor to all other ranks and gather whatever
     the other ranks scattered.
@@ -14,5 +13,6 @@ def all_to_all(
     Args:
         source_tensor (np.ndarray): Source tensor for each process.
         destination_tensor (np.ndarray): Tensor to gather the results.
+        comm (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
-    MPI_COMM.Alltoallv(source_tensor, destination_tensor)
+    comm.Alltoallv(source_tensor, destination_tensor)

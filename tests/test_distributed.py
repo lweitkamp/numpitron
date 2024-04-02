@@ -5,8 +5,10 @@ import pytest
 
 import numpitron.distributed as npdist
 
-RANK = npdist.get_rank()
-WORLD_SIZE = npdist.world_size()
+
+comm = npdist.WorldCommunicator()
+RANK = comm.world_rank
+WORLD_SIZE = comm.world_size
 
 
 @pytest.mark.parametrize(

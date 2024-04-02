@@ -2,12 +2,10 @@ import numpy as np
 from mpi4py import MPI
 
 
-MPI_COMM = MPI.COMM_WORLD
-
-
 def all_reduce(
     tensor: np.ndarray,
     op: MPI.Op = MPI.SUM,
+    comm: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> None:
     """Reduce tensor across all processes and broadcast the result
     back to all processes.
@@ -15,5 +13,6 @@ def all_reduce(
     Args:
         tensor (np.ndarray): NumPy array.
         op (MPI.Op): Operation to reduce the tensor.
+        comm (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
-    MPI_COMM.Allreduce(MPI.IN_PLACE, tensor, op=op)
+    comm.Allreduce(MPI.IN_PLACE, tensor, op=op)
