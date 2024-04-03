@@ -20,12 +20,14 @@ def all_gather(
         destination_tensor (np.ndarray): Tensor to gather the results.
         axis (int): The axis on which the tensor needs to be concatenated.
         comm (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
-    """    
-    receiving_buffer = np.empty(np.prod(destination_tensor.shape))
+    """
+    receiving_buffer = np.empty(
+        np.prod(destination_tensor.shape), dtype=source_tensor.dtype
+    )
     comm.Allgather(source_tensor, receiving_buffer)
     receiving_buffer = np.split(receiving_buffer, comm.Get_size(), axis)
     receiving_buffer = np.concatenate(
         [x.reshape(source_tensor.shape) for x in receiving_buffer],
-        axis=-1,
+        axis=axis,
     )
     np.copyto(destination_tensor, receiving_buffer)
