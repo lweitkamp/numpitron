@@ -1,3 +1,11 @@
+"""Every tests follows the following logic:
+
+1. Initiate parallel and non-parallel layer.
+2. 'Scatter' non-parallel weights to parallel layer.
+3. Run a forward + backward pass with both.
+4. Check outputs + the 'Gather' results.
+"""
+
 import numpy as np
 import pytest
 from numpy.random import Generator
@@ -65,30 +73,18 @@ def test_mlp(
     grads, d_out = mlp.backward(ctx, np.ones_like(out))
     grads_tp, d_out_tp = mlp_tp.backward(ctx_tp, np.ones_like(out_tp))
 
+    clw = np.zeros_like(grads["Linear1"]["weight"])
+    clb = np.zeros_like(grads["Linear1"]["bias"])
+    rlw = np.zeros_like(grads["Linear2"]["weight"])
+
+    npdist.all_gather(
+        grads_tp["ColumnLinear"]["weight"], clw, axis=-1, comm=comm.tp_comm
+    )
+    npdist.all_gather(grads_tp["ColumnLinear"]["bias"], clb, axis=0, comm=comm.tp_comm)
+    npdist.all_gather(grads_tp["RowLinear"]["weight"], rlw, axis=0, comm=comm.tp_comm)
+
     np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
     np.testing.assert_allclose(out, out_tp, atol=1e-5)
-
-    # np.testing.assert_allclose(
-    #     grads["Linear2"]["weight"].T,
-    #     mlp_torch[2].weight.grad,
-    #     rtol=1e-5,
-    #     atol=1e-5,
-    # )
-    # np.testing.assert_allclose(
-    #     grads["Linear2"]["bias"],
-    #     mlp_torch[2].bias.grad,
-    #     rtol=1e-5,
-    #     atol=1e-5,
-    # )
-    # np.testing.assert_allclose(
-    #     grads["Linear1"]["weight"].T,
-    #     mlp_torch[0].weight.grad,
-    #     rtol=1e-5,
-    #     atol=1e-5,
-    # )
-    # np.testing.assert_allclose(
-    #     grads["Linear1"]["bias"],
-    #     mlp_torch[0].bias.grad,
-    #     rtol=1e-5,
-    #     atol=1e-5,
-    # )
+    np.testing.assert_allclose(grads["Linear1"]["weight"], clw, atol=1e-5)
+    np.testing.assert_allclose(grads["Linear1"]["bias"], clb, atol=1e-5)
+    np.testing.assert_allclose(grads["Linear2"]["weight"], rlw, atol=1e-5)

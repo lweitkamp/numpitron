@@ -14,7 +14,7 @@ class TensorParallelMLP(Sequential):
         d_model: int,
         d_hidden: int,
         communicator: npdist.ParallelCommunicator,
-        name="MLP",
+        name="TensorParallelMLP",
         dtype=np.float32,
     ):
         super().__init__(name=name, dtype=dtype)
@@ -43,5 +43,5 @@ class TensorParallelMLP(Sequential):
         d_out: np.ndarray,
     ) -> tuple[dict[str, dict], np.ndarray]:
         gradients, d_out = super().backward(ctx, d_out)
-        tree_map(npdist.all_reduce, gradients, comm=self.comm.tp_comm)
+        npdist.all_reduce(d_out, comm=self.comm.tp_comm)
         return gradients, d_out
