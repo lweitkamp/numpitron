@@ -1,6 +1,7 @@
 """Core layer abstractions."""
 from abc import ABC
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 from numpy.random import Generator
@@ -95,3 +96,16 @@ def load_params(load_path: Path | str) -> dict:
         tree of parameters.
     """
     return np.load(load_path, allow_pickle=True)[()]
+
+
+def tree_map(fn: Callable, tree: dict, **kwargs):
+    if isinstance(tree, np.ndarray):
+        fn(tree, **kwargs)
+        return
+
+    assert isinstance(tree, dict), (
+        f"Input to tree map must be dict, found {type(tree)}"
+    )
+
+    for key, value in tree.items():
+        tree_map(fn, value, **kwargs)
