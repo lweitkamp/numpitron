@@ -7,7 +7,7 @@ from numpitron import distributed as npdist
 
 
 class TensorParallelMLP(nn.MLP):
-    """Simple Multi-Layered Perceptron with two layers."""
+    """Tensor parallel implementation of an MLP block."""
 
     def __init__(
         self,
@@ -23,6 +23,9 @@ class TensorParallelMLP(nn.MLP):
             name=name,
             dtype=dtype,
         )
+
+        # Bias is not sharded for row parallel linear layer.
+        self.layers[-1].use_bias = communicator.rank == 0
         self.comm = communicator
 
     def forward(
