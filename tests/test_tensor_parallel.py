@@ -10,15 +10,10 @@ import numpy as np
 import pytest
 from numpy.random import Generator
 
-import numpitron.distributed as npdist
-from numpitron import nn
+from numpitron import nn, distributed as npdist
 from numpitron.tensor_parallel import TensorParallelMLP
 
-world_comm = npdist.WorldCommunicator()
-RANK = world_comm.world_rank
-WORLD_SIZE = world_comm.world_size
-
-comm = npdist.ParallelCommunicator(tp_size=WORLD_SIZE)
+npdist.init(tp_size=npdist.world_size())
 
 
 TEST_SHAPES = [
@@ -44,7 +39,7 @@ def test_mlp(
     inputs = rng.random((batch_size, seq_len, d_model)).astype(np.float32)
 
     mlp = nn.MLP(d_model, d_model * 4)
-    mlp_tp = TensorParallelMLP(d_model, d_model * 4, communicator=comm)
+    mlp_tp = TensorParallelMLP(d_model, d_model * 4)
     params = mlp.init_params(rng=rng)
     params_tp = mlp_tp.init_params(rng=rng)
 
@@ -53,14 +48,14 @@ def test_mlp(
             params[weight]["weight"],
             params_tp[weight]["weight"],
             axis=1 if i == 0 else 0,
-            comm=comm.tp_comm,
+            group=npdist.tensor_parallel_group(),
         )
         if i == 0:
             npdist.scatter(
                 params[weight]["bias"],
                 params_tp[weight]["bias"],
                 axis=0,
-                comm=comm.tp_comm,
+                group=npdist.tensor_parallel_group(),
             )
 
     ctx, out = mlp(params, inputs)
@@ -75,11 +70,19 @@ def test_mlp(
     for i, weight in enumerate(["Linear1", "Linear2"]):
         w = np.zeros_like(grads[weight]["weight"])
         npdist.all_gather(
-            grads_tp[weight]["weight"], w, axis=-1 if i == 0 else 0, comm=comm.tp_comm
+            grads_tp[weight]["weight"],
+            w,
+            axis=-1 if i == 0 else 0,
+            group=npdist.tensor_parallel_group(),
         )
         np.testing.assert_allclose(grads[weight]["weight"], w, atol=1e-5)
 
         if i == 0:
             b = np.zeros_like(grads[weight]["bias"])
-            npdist.all_gather(grads_tp[weight]["bias"], b, axis=0, comm=comm.tp_comm)
+            npdist.all_gather(
+                grads_tp[weight]["bias"],
+                b,
+                axis=0,
+                group=npdist.tensor_parallel_group(),
+            )
             np.testing.assert_allclose(grads[weight]["bias"], b, atol=1e-5)

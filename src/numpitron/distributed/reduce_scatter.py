@@ -9,7 +9,7 @@ def reduce_scatter(
     source_tensor: np.ndarray,
     destination_tensor: np.ndarray,
     op: MPI.Op = MPI.SUM,
-    comm: MPI.Intracomm = MPI.COMM_WORLD,
+    group: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> None:
     """Reduce source tensor to root process and scatter the reduction
     back to all processes.
@@ -22,9 +22,9 @@ def reduce_scatter(
         source_tensor (np.ndarray): Source tensor for each process.
         destination_tensor (np.ndarray): Tensor to gather the results.
         op (MPI.Op): Operation to reduce the tensor.
-        comm (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
+        group (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
     # MPI_COMM.Reduce_scatter(source_tensor, destination_tensor, op=op)
     # TODO(@laurens) not working
-    reduce(source_tensor, dst=0, op=op, comm=comm)
-    scatter(source_tensor, destination_tensor, axis=-1, src=0, comm=comm)
+    reduce(source_tensor, dst=0, op=op, group=group)
+    scatter(source_tensor, destination_tensor, axis=-1, src=0, group=group)
