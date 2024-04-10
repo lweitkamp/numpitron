@@ -15,29 +15,27 @@ class TensorParallelAttention(nn.Attention):
         d_model: int,
         n_heads: int,
         d_hidden: int,
-        communicator: npdist.ParallelCommunicator,
         name: str = "TensorParallelAttention",
         dtype=np.float32,
     ):
         super().__init__(
             d_model=d_model,
-            n_heads=n_heads // communicator.tp_size,
+            n_heads=n_heads // npdist.tensor_parallel_size(),
             d_hidden=d_hidden,
             name=name,
             dtype=dtype,
         )
-        self.comm = communicator
 
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[dict, np.ndarray]:
         """Forward pass through the self-attention layer."""
         ctx, out = super().forward(params, inputs)
-        tree_map(npdist.all_reduce, out, comm=self.comm.tp_comm)
+        tree_map(npdist.all_reduce, out, group=npdist.tensor_parallel_group())
         return ctx, out
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """Backward pass through the Attention layer."""
         gradients, d_out = super().backward(ctx, d_out)
-        tree_map(npdist.all_reduce, gradients, comm=self.comm.tp_comm)
+        tree_map(npdist.all_reduce, gradients, group=npdist.tensor_parallel_group())
         return gradients, d_out

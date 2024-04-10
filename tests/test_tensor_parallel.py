@@ -41,9 +41,7 @@ def test_attention(
     inputs = rng.random((batch_size, seq_len, d_model)).astype(np.float32)
 
     attention = nn.Attention(d_model, n_heads, d_model // n_heads)
-    attention_tp = TensorParallelAttention(
-        d_model, n_heads, d_model // n_heads, communicator=comm
-    )
+    attention_tp = TensorParallelAttention(d_model, n_heads, d_model // n_heads)
     params = attention.init_params(rng=rng)
     params_tp = attention_tp.init_params(rng=rng)
 
@@ -52,26 +50,26 @@ def test_attention(
             params[weight]["weight"],
             params_tp[weight]["weight"],
             axis=1,
-            comm=comm.tp_comm,
+            group=npdist.tensor_parallel_group(),
         )
         npdist.scatter(
             params[weight]["bias"],
             params_tp[weight]["bias"],
             axis=0,
-            comm=comm.tp_comm,
+            group=npdist.tensor_parallel_group(),
         )
 
     npdist.scatter(
         params["out_projection"]["weight"],
         params_tp["out_projection"]["weight"],
         axis=0,
-        comm=comm.tp_comm,
+        group=npdist.tensor_parallel_group(),
     )
     npdist.scatter(
         params["out_projection"]["bias"],
         params_tp["out_projection"]["bias"],
         axis=0,
-        comm=comm.tp_comm,
+        group=npdist.tensor_parallel_group(),
     )
 
     ctx, out = attention(params, inputs)
