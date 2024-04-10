@@ -1,16 +1,4 @@
-# flake8: noqa
-from dataclasses import dataclass, replace, field
-
-from numpitron.distributed.all_gather import all_gather
-from numpitron.distributed.all_reduce import all_reduce
-from numpitron.distributed.all_to_all import all_to_all
-from numpitron.distributed.broadcast import broadcast
-from numpitron.distributed.gather import gather
-from numpitron.distributed.recv import recv
-from numpitron.distributed.reduce_scatter import reduce_scatter
-from numpitron.distributed.reduce import reduce
-from numpitron.distributed.scatter import scatter
-from numpitron.distributed.send import send
+from dataclasses import dataclass, replace
 
 import numpy as np
 from mpi4py import MPI
@@ -20,7 +8,7 @@ from mpi4py import MPI
 class ParallelState:
     """A parallel state data class. Holds all communication groups."""
 
-    world_group: MPI.Group = field(default_factory=lambda: MPI.COMM_WORLD)
+    world_group: MPI.Group = MPI.COMM_WORLD
     tensor_parallel_group: MPI.Group = None
     pipeline_parallel_group: MPI.Group = None
     data_parallel_group: MPI.Group = None
@@ -57,14 +45,6 @@ def tensor_parallel_rank() -> int:
     return PARALLEL_STATE.tensor_parallel_group.Get_rank()
 
 
-def tensor_parallel_group() -> int:
-    """Returns the tensor parallel group related to the current rank."""
-    assert (
-        PARALLEL_STATE.tensor_parallel_group is not None
-    ), "Tensor Parallel group is not initiated."
-    return PARALLEL_STATE.tensor_parallel_group
-
-
 def pipeline_parallel_size() -> int:
     """Returns the size of current rank's pipeline parallel group."""
     assert (
@@ -81,14 +61,6 @@ def pipeline_parallel_rank() -> int:
     return PARALLEL_STATE.pipeline_parallel_group.Get_rank()
 
 
-def pipeline_parallel_group() -> int:
-    """Returns the pipeline parallel group related to the current rank."""
-    assert (
-        PARALLEL_STATE.pipeline_parallel_group is not None
-    ), "Pipeline Parallel group is not initiated."
-    return PARALLEL_STATE.pipeline_parallel_group
-
-
 def data_parallel_size() -> int:
     """Returns the size of current rank's data parallel group."""
     assert (
@@ -103,14 +75,6 @@ def data_parallel_rank() -> int:
         PARALLEL_STATE.data_parallel_group is not None
     ), "Data Parallel group is not initiated."
     return PARALLEL_STATE.data_parallel_group.Get_rank()
-
-
-def data_parallel_group() -> int:
-    """Returns the daata parallel group related to the current rank."""
-    assert (
-        PARALLEL_STATE.data_parallel_group is not None
-    ), "Data Parallel group is not initiated."
-    return PARALLEL_STATE.data_parallel_group
 
 
 def add_group(all_groups_ranks: np.ndarray):
