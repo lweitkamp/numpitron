@@ -1,23 +1,11 @@
-# flake8: noqa
 from dataclasses import dataclass, replace
-
-from numpitron.distributed.all_gather import all_gather
-from numpitron.distributed.all_reduce import all_reduce
-from numpitron.distributed.all_to_all import all_to_all
-from numpitron.distributed.broadcast import broadcast
-from numpitron.distributed.gather import gather
-from numpitron.distributed.recv import recv
-from numpitron.distributed.reduce_scatter import reduce_scatter
-from numpitron.distributed.reduce import reduce
-from numpitron.distributed.scatter import scatter
-from numpitron.distributed.send import send
 
 import numpy as np
 from mpi4py import MPI
 
 
 @dataclass
-class ParallelSTATE:
+class ParallelState:
     """A parallel state data class. Holds all communication groups."""
 
     world_group: MPI.Group = MPI.COMM_WORLD
@@ -28,7 +16,7 @@ class ParallelSTATE:
 
 
 # The default parallel state only has the world group active.
-PARALLEL_STATE = ParallelSTATE()
+PARALLEL_STATE = ParallelState()
 
 
 def world_size() -> int:
