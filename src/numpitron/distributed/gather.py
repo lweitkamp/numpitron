@@ -7,7 +7,7 @@ def gather(
     destination_tensor: np.ndarray,
     dst: int = 0,
     axis: int = -1,
-    comm: MPI.Intracomm = MPI.COMM_WORLD,
+    group: MPI.Intracomm = MPI.COMM_WORLD,
 ) -> None:
     """Gather source tensor from all processes and store it in destination
     tensor.
@@ -17,13 +17,13 @@ def gather(
         destination_tensor (np.ndarray): Tensor to store result in.
         dst (int): Rank on which we gather the data.
         axis (int): The axis on which the tensor needs to be concatenated.
-        comm (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
+        group (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
     receiving_buffer = np.empty(np.prod(destination_tensor.shape))
-    comm.Gatherv(source_tensor, receiving_buffer, root=dst)
+    group.Gatherv(source_tensor, receiving_buffer, root=dst)
 
-    if comm.Get_rank() == dst:
-        receiving_buffer = np.split(receiving_buffer, comm.Get_size(), axis)
+    if group.Get_rank() == dst:
+        receiving_buffer = np.split(receiving_buffer, group.Get_size(), axis)
         receiving_buffer = np.concatenate(
             [x.reshape(source_tensor.shape) for x in receiving_buffer],
             axis=-1,
