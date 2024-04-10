@@ -22,7 +22,7 @@ class TensorParallelMLP(nn.MLP):
             name=name,
             dtype=dtype,
         )
-        
+
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[dict, np.ndarray]:
