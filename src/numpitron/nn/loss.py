@@ -40,7 +40,7 @@ class SoftmaxCrossEntropy(Layer):
         logsumexp_logits = np.log(np.sum(np.exp(logits), axis=-1))
 
         loss = logsumexp_logits - predicted_logits
-        loss = loss.reshape((batch_size, seq_len))
+        loss = loss.reshape(batch_size, seq_len)
 
         return ctx, loss
 

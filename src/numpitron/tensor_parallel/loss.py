@@ -1,7 +1,7 @@
 import numpy as np
 
 from numpitron.nn.core import Layer
-from numpitron import nn, distributed as npdist
+from numpitron import distributed as npdist
 
 
 class TensorParallelSoftmaxCrossEntropy(Layer):
@@ -48,7 +48,7 @@ class TensorParallelSoftmaxCrossEntropy(Layer):
         # Subtract max for stability - dont use keepdims for (B, S) comm.
         logits_max = logits.max(axis=-1)
         npdist.all_reduce(logits_max, op="max", group=npdist.tensor_parallel_group())
-        logits = logits - logits_max.unsqueeze(-1)
+        logits = logits - np.expand_dims(logits_max, -1)
 
         # Mask out the predicted logits where labels were masked, (B, S) comm.
         predicted_logits = logits[np.arange(batch_size * seq_len), labels]
@@ -60,7 +60,7 @@ class TensorParallelSoftmaxCrossEntropy(Layer):
         sum_exp_logits = np.sum(exp_logits, axis=-1)
         npdist.all_reduce(sum_exp_logits, group=npdist.tensor_parallel_group())
 
-        loss = -logits + np.log(sum_exp_logits)
+        loss = -predicted_logits + np.log(sum_exp_logits)
         loss = loss.reshape(batch_size, seq_len)
 
         ctx = {
@@ -78,7 +78,7 @@ class TensorParallelSoftmaxCrossEntropy(Layer):
         is to ensure the mask is used accordingly."""
         batch_size, seq_len, vocab_chunk_size = ctx["softmax"].shape
 
-        softmax = ctx["softmax"].reshape(ctx["mask"].shape)
+        softmax = ctx["softmax"].reshape(batch_size * seq_len, vocab_chunk_size)
         softmax[np.arange(batch_size * seq_len), ctx["masked_labels"]] -= (
             1 - ctx["mask"]
         )

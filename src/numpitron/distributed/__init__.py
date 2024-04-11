@@ -137,19 +137,19 @@ def init(tp_size: int = 1, pp_size: int = 1, dp_size: int = 1) -> None:
     )
 
     # Do init all groups.
-    ranks = np.arange(0, world_size()).reshape((pp_size, dp_size, tp_size))
+    ranks = np.arange(0, world_size()).reshape(pp_size, dp_size, tp_size)
 
     global PARALLEL_STATE
     PARALLEL_STATE = replace(
         PARALLEL_STATE,
         tensor_parallel_group=add_group(
-            ranks.transpose((0, 1, 2)).reshape((-1, tp_size))
+            ranks.transpose((0, 1, 2)).reshape(-1, tp_size)
         ),
         pipeline_parallel_group=add_group(
-            ranks.transpose((1, 2, 0)).reshape((-1, pp_size))
+            ranks.transpose((1, 2, 0)).reshape(-1, pp_size)
         ),
         data_parallel_group=add_group(
-            ranks.transpose((2, 0, 1)).reshape((-1, dp_size))
+            ranks.transpose((2, 0, 1)).reshape(-1, dp_size)
         ),
         model_parallel_group=add_group(
             [ranks[:, dp_rank, :].reshape(-1) for dp_rank in range(dp_size)]

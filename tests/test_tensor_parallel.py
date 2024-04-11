@@ -11,7 +11,11 @@ import pytest
 from numpy.random import Generator
 
 from numpitron import nn, distributed as npdist
-from numpitron.tensor_parallel import TensorParallelMLP, TensorParallelInputEmbedding
+from numpitron.tensor_parallel import (
+    TensorParallelMLP,
+    TensorParallelInputEmbedding,
+    TensorParallelSoftmaxCrossEntropy,
+)
 
 npdist.init(tp_size=npdist.world_size())
 
@@ -67,6 +71,37 @@ def test_embedding(
     np.testing.assert_allclose(out, out_tp, atol=1e-5)
     np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
     np.testing.assert_allclose(g, grads["embedding"], atol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
+)
+def test_softmax_cross_entropy(
+    batch_size: int,
+    seq_len: int,
+    d_model: int,
+    vocab_size: int,
+    rng: Generator,
+):
+    inputs = rng.random((batch_size, seq_len, vocab_size))
+    labels = rng.integers(0, vocab_size, (batch_size, seq_len))
+
+    inputs_tp = np.zeros(
+        (batch_size, seq_len, vocab_size // npdist.tensor_parallel_size())
+    )
+    npdist.scatter(inputs, inputs_tp, axis=-1, group=npdist.tensor_parallel_group())
+
+    ce = nn.SoftmaxCrossEntropy()
+    ce_tp = TensorParallelSoftmaxCrossEntropy()
+
+    ctx, out = ce({}, inputs, labels)
+    ctx_tp, out_tp = ce_tp({}, inputs_tp, labels)
+
+    _, d_out = ce.backward(ctx, None)
+    _, d_out_tp = ce_tp.backward(ctx_tp, None)
+
+    np.testing.assert_allclose(out, out_tp)
+    np.testing.assert_allclose(d_out, d_out_tp)
 
 
 @pytest.mark.parametrize("batch_size,seq_len,d_model", TEST_SHAPES)
