@@ -11,7 +11,11 @@ import pytest
 from numpy.random import Generator
 
 from numpitron import nn, distributed as npdist
-from numpitron.tensor_parallel import TensorParallelMLP, TensorParallelInputEmbedding
+from numpitron.tensor_parallel import (
+    TensorParallelAttention,
+    TensorParallelMLP,
+    TensorParallelInputEmbedding,
+)
 
 npdist.init(tp_size=npdist.world_size())
 
@@ -67,6 +71,59 @@ def test_embedding(
     np.testing.assert_allclose(out, out_tp, atol=1e-5)
     np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
     np.testing.assert_allclose(g, grads["embedding"], atol=1e-5)
+
+
+@pytest.mark.parametrize("batch_size,seq_len,d_model", TEST_SHAPES)
+def test_attention(
+    batch_size: int,
+    seq_len: int,
+    d_model: int,
+    rng: Generator,
+):
+    n_heads: int = d_model // 2
+
+    inputs = rng.random((batch_size, seq_len, d_model)).astype(np.float32)
+
+    attention = nn.Attention(d_model, n_heads, d_model // n_heads)
+    attention_tp = TensorParallelAttention(d_model, n_heads, d_model // n_heads)
+    params = attention.init_params(rng=rng)
+    params_tp = attention_tp.init_params(rng=rng)
+
+    for weight in ("q_projection", "k_projection", "v_projection"):
+        npdist.scatter(
+            params[weight]["weight"],
+            params_tp[weight]["weight"],
+            axis=1,
+            group=npdist.tensor_parallel_group(),
+        )
+        npdist.scatter(
+            params[weight]["bias"],
+            params_tp[weight]["bias"],
+            axis=0,
+            group=npdist.tensor_parallel_group(),
+        )
+
+    npdist.scatter(
+        params["out_projection"]["weight"],
+        params_tp["out_projection"]["weight"],
+        axis=0,
+        group=npdist.tensor_parallel_group(),
+    )
+    npdist.scatter(
+        params["out_projection"]["bias"],
+        params_tp["out_projection"]["bias"],
+        axis=0,
+        group=npdist.tensor_parallel_group(),
+    )
+
+    ctx, out = attention(params, inputs)
+    ctx_tp, out_tp = attention_tp(params_tp, inputs)
+
+    grads, d_out = attention.backward(ctx, np.ones_like(out))
+    grads_tp, d_out_tp = attention_tp.backward(ctx_tp, np.ones_like(out_tp))
+
+    np.testing.assert_allclose(out, out_tp, atol=1e-5)
+    np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
 
 
 @pytest.mark.parametrize("batch_size,seq_len,d_model", TEST_SHAPES)

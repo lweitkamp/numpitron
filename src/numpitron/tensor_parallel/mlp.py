@@ -7,7 +7,7 @@ from numpitron import distributed as npdist
 
 
 class TensorParallelMLP(nn.MLP):
-    """Simple Multi-Layered Perceptron with two layers."""
+    """Tensor parallel implementation of an MLP block."""
 
     def __init__(
         self,
