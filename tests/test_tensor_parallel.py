@@ -11,7 +11,7 @@ import pytest
 from numpy.random import Generator
 
 from numpitron import nn, distributed as npdist
-from numpitron.tensor_parallel import TensorParallelAttention, TensorParallelMLP
+from numpitron.tensor_parallel import TensorParallelAttention, TensorParallelMLP, TensorParallelInputEmbedding
 
 npdist.init(tp_size=npdist.world_size())
 
@@ -27,6 +27,46 @@ TEST_SHAPES = [
 @pytest.fixture
 def rng() -> Generator:
     return np.random.default_rng(42)
+
+
+@pytest.mark.parametrize(
+    "batch_size,seq_len,d_model,vocab_size", [shape + (20,) for shape in TEST_SHAPES]
+)
+def test_embedding(
+    batch_size: int,
+    seq_len: int,
+    d_model: int,
+    vocab_size: int,
+    rng: Generator,
+):
+    inputs = rng.integers((batch_size, seq_len, vocab_size))
+
+    embedding = nn.InputEmbedding(d_model, vocab_size)
+    embedding_tp = TensorParallelInputEmbedding(d_model, vocab_size)
+    params = embedding.init_params(rng=rng)
+    params_tp = embedding_tp.init_params(rng=rng)
+
+    npdist.scatter(
+        params["embedding"],
+        params_tp["embedding"],
+        axis=1,
+        group=npdist.tensor_parallel_group(),
+    )
+
+    ctx, out = embedding(params, inputs)
+    ctx_tp, out_tp = embedding_tp(params_tp, inputs)
+
+    grads, d_out = embedding.backward(ctx, np.ones_like(out))
+    grads_tp, d_out_tp = embedding_tp.backward(ctx_tp, np.ones_like(out_tp))
+
+    g = np.zeros_like(grads["embedding"])
+    npdist.all_gather(
+        grads_tp["embedding"], g, axis=-1, group=npdist.tensor_parallel_group()
+    )
+
+    np.testing.assert_allclose(out, out_tp, atol=1e-5)
+    np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(g, grads["embedding"], atol=1e-5)
 
 
 @pytest.mark.parametrize("batch_size,seq_len,d_model", TEST_SHAPES)
