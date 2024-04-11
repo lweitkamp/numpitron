@@ -57,7 +57,7 @@ def tensor_parallel_rank() -> int:
     return PARALLEL_STATE.tensor_parallel_group.Get_rank()
 
 
-def tensor_parallel_group() -> int:
+def tensor_parallel_group() -> MPI.Group:
     """Returns the tensor parallel group related to the current rank."""
     assert (
         PARALLEL_STATE.tensor_parallel_group is not None
@@ -81,7 +81,7 @@ def pipeline_parallel_rank() -> int:
     return PARALLEL_STATE.pipeline_parallel_group.Get_rank()
 
 
-def pipeline_parallel_group() -> int:
+def pipeline_parallel_group() -> MPI.Group:
     """Returns the pipeline parallel group related to the current rank."""
     assert (
         PARALLEL_STATE.pipeline_parallel_group is not None
@@ -105,7 +105,7 @@ def data_parallel_rank() -> int:
     return PARALLEL_STATE.data_parallel_group.Get_rank()
 
 
-def data_parallel_group() -> int:
+def data_parallel_group() -> MPI.Group:
     """Returns the daata parallel group related to the current rank."""
     assert (
         PARALLEL_STATE.data_parallel_group is not None
