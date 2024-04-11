@@ -17,6 +17,7 @@ class Linear(Layer):
         self,
         input_dim: tuple | int,
         output_dim: tuple | int,
+        use_bias:  bool = True,
         name: str = "Linear",
         dtype=np.float32,
     ):
@@ -31,12 +32,14 @@ class Linear(Layer):
 
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.use_bias = use_bias
 
     def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         params: dict[str, np.ndarray] = {
             "weight": rng.random(self.input_dim + self.output_dim) * 0.02,
-            "bias": np.zeros(self.output_dim),
         }
+        if self.use_bias:
+            params["bias"] = np.zeros(self.output_dim)
         return {key: value.astype(self.dtype) for key, value in params.items()}
 
     def forward(
@@ -51,7 +54,8 @@ class Linear(Layer):
             params["weight"],
         )
 
-        outputs = outputs + params["bias"]
+        if self.use_bias:
+            outputs = outputs + params["bias"]
 
         return ctx, outputs
 
@@ -63,10 +67,10 @@ class Linear(Layer):
             d_out,
         )
 
-        gradients = {
-            "weight": weight_gradient.sum(axis=(0, 1)),
-            "bias": d_out.sum(axis=(0, 1)),
-        }
+        gradients = {"weight": weight_gradient.sum(axis=(0, 1))}
+        if self.use_bias:
+            gradients["bias"] = d_out.sum(axis=(0, 1))
+
 
         d_out = np.einsum(
             f"...{self.out_chr}, {self.in_chr}{self.out_chr} -> ...{self.in_chr}",
