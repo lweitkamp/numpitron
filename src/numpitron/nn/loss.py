@@ -16,6 +16,7 @@ class SoftmaxCrossEntropy(Layer):
         """Calculate the cross-entropy loss given logits (`inputs`).
 
         Arguments:
+            params (dict[str, np.ndarray]): Parameters (if required).
             inputs (B, S, V): A batch (B) of sequences S with vocab size V.
             labels (B, S, 1): A dense set of labels for each batch & sequence.
 

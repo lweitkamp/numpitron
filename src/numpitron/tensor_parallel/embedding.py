@@ -5,7 +5,12 @@ from numpitron import distributed as npdist
 
 
 class TensorParallelInputEmbedding(nn.InputEmbedding):
-    """The input embedding lookup-table, split on the vocab dim."""
+    """A Tensor Parallel embedding layer. The embedding table is split
+    along the vocab dim - each process holds a chunk of the vocab.
+    
+    To ensure the next layer will get the full results of a single embedding
+    table, we use a masking scheme that masks tokens not in the current
+    process' chunk. An allreduce is required to fill in the masked locations."""
 
     def __init__(
         self,
@@ -24,7 +29,19 @@ class TensorParallelInputEmbedding(nn.InputEmbedding):
     def forward(
         self, params: dict[str, np.ndarray], inputs: np.ndarray
     ) -> tuple[dict, np.ndarray]:
-        """..."""
+        """Given a chunked embedding table and input tokens, embed the tokens.
+        If the token indices are not found in the current process' chunk,
+        mask them out with 0s in the output. The allreduce will ensure
+        that each process fills in the 0s.
+
+        Arguments:
+            params (dict[str, np.ndarray]): parameters with key 'embedding'
+                present.
+            inputs (np.ndarray): Input tokens of type int32.
+
+        Returns:
+            Token embeddings.
+        """
         # Figure out token valid range for this specific embedding chunk.
         chunk_start = npdist.tensor_parallel_rank() * params["embedding"].shape[1]
         chunk_end = chunk_start + params["embedding"].shape[1]
