@@ -11,7 +11,11 @@ import pytest
 from numpy.random import Generator
 
 from numpitron import nn, distributed as npdist
-from numpitron.tensor_parallel import TensorParallelAttention, TensorParallelMLP, TensorParallelInputEmbedding
+from numpitron.tensor_parallel import (
+    TensorParallelAttention,
+    TensorParallelMLP,
+    TensorParallelInputEmbedding,
+)
 
 npdist.init(tp_size=npdist.world_size())
 
@@ -119,12 +123,7 @@ def test_attention(
     grads_tp, d_out_tp = attention_tp.backward(ctx_tp, np.ones_like(out_tp))
 
     np.testing.assert_allclose(out, out_tp, atol=1e-5)
-    # np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
-
-    # for weight in ("q_projection", "k_projection", "v_projection"):
-    #     x = np.zeros_like(grads[weight]["weight"])
-    #     npdist.all_gather(grads_tp[weight]["weight"], x, axis=-1, comm=tp_comm)
-    #     np.testing.assert_allclose(grads[weight]["weight"], x, atol=1e-5)
+    np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5, atol=1e-5)
 
 
 @pytest.mark.parametrize("batch_size,seq_len,d_model", TEST_SHAPES)

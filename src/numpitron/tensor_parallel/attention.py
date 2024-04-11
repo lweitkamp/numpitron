@@ -1,9 +1,6 @@
 import numpy as np
 
-from numpitron import nn
-from numpitron.nn.core import tree_map
-
-from numpitron import distributed as npdist
+from numpitron import nn, distributed as npdist
 
 
 class TensorParallelAttention(nn.Attention):
@@ -31,11 +28,12 @@ class TensorParallelAttention(nn.Attention):
     ) -> tuple[dict, np.ndarray]:
         """Forward pass through the self-attention layer."""
         ctx, out = super().forward(params, inputs)
-        tree_map(npdist.all_reduce, out, group=npdist.tensor_parallel_group())
+        npdist.all_reduce(out, group=npdist.tensor_parallel_group())
         return ctx, out
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         """Backward pass through the Attention layer."""
         gradients, d_out = super().backward(ctx, d_out)
-        tree_map(npdist.all_reduce, gradients, group=npdist.tensor_parallel_group())
+        d_out = np.ascontiguousarray(d_out)
+        npdist.all_reduce(d_out, group=npdist.tensor_parallel_group())
         return gradients, d_out
