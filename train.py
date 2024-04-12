@@ -5,7 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
-from numpitron import data, models, nn, optimizers
+from numpitron import data, models, nn, optimizers, distributed as npdist
 from tqdm import tqdm, trange
 
 
@@ -70,12 +70,17 @@ def train(config: dict, save_path: str | Path) -> dict:
 
     min_loss = float("inf")
 
-    for epoch in trange(config["data_config"]["num_epochs"], desc="Epochs"):
+    for epoch in trange(
+        config["data_config"]["num_epochs"],
+        desc="Epochs",
+        disable=npdist.world_rank() != 0,
+    ):
         train_bar = tqdm(
             enumerate(train_dataloader.iter_epoch()),
             leave=False,
             desc="Train (loss: N/A)",
             total=train_dataloader.batches_per_epoch,
+            disable=npdist.world_rank() != 0,
         )
 
         for i, (inputs, labels) in train_bar:
@@ -97,6 +102,7 @@ def train(config: dict, save_path: str | Path) -> dict:
                 leave=False,
                 desc="Validation (loss: N/A)",
                 total=validation_dataloader.batches_per_epoch,
+                disable=npdist.world_rank() != 0,
             )
             validation_loss = validation_step(
                 state.model, state.parameters, validation_bar
@@ -118,9 +124,19 @@ if __name__ == "__main__":
         default="examples",
         help="Where to save outputs.",
     )
+    parser.add_argument(
+        "--tensor_parallel_size",
+        type=int,
+        default=1,
+        help="Number of tensor parallel processes.",
+    )
     args = parser.parse_args()
 
     with open(args.config_path, mode="r", encoding="utf-8") as f:
         cfg = json.load(f)
+
+    npdist.init(
+        tp_size=args.tensor_parallel_size,
+    )
 
     train(cfg, args.save_path)
