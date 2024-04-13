@@ -1,11 +1,11 @@
 import numpy as np
 from numpy.random import Generator
 
-from numpitron import nn
+from numpitron import nn, tensor_parallel as tp
 from numpitron.nn.core import Layer, Sequential
 
 
-class TransformerBlock(Layer):
+class MegatronLMBlock(Layer):
     """Simple transformer block with
     attn -> norm -> res -> mlp -> norm -> res.
     """
@@ -21,14 +21,18 @@ class TransformerBlock(Layer):
         self.d_model = d_model
         self.n_heads = n_heads
 
-        self.attention = nn.Attention(
+        self.attention = tp.TensorParallelAttention(
             self.d_model,
             self.n_heads,
             self.d_model // self.n_heads,
             dtype=dtype,
         )
         self.norm1 = nn.LayerNorm(self.d_model, dtype=dtype)
-        self.mlp = nn.MLP(self.d_model, self.d_model * 4, dtype=dtype)
+        self.mlp = tp.TensorParallelMLP(
+            self.d_model,
+            self.d_model * 4,
+            dtype=dtype,
+        )
         self.norm2 = nn.LayerNorm(self.d_model, dtype=dtype)
 
     def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
@@ -78,7 +82,7 @@ class TransformerBlock(Layer):
         return gradients, d_out
 
 
-class Transformer(Sequential):
+class MegatronLM(Sequential):
     """Transformer model."""
 
     def __init__(
@@ -98,11 +102,13 @@ class Transformer(Sequential):
         self.n_heads = n_heads
         self.n_layers = n_layers
 
-        self.layers.append(nn.InputEmbedding(d_model, vocab_size, dtype=dtype))
+        self.layers.append(
+            tp.TensorParallelInputEmbedding(d_model, vocab_size, dtype=dtype)
+        )
         self.layers.append(nn.PositionalEmbedding(d_model, seq_len, dtype=dtype))
         self.layers.extend(
             [
-                TransformerBlock(
+                MegatronLMBlock(
                     d_model, n_heads, name=f"TransformerBlock_{i}", dtype=dtype
                 )
                 for i in range(n_layers)
@@ -117,7 +123,7 @@ class Transformer(Sequential):
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         gradients, d_out = super().backward(ctx, d_out)
-        gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
-            "embedding"
-        ]
+        gradients["TensorParallelInputEmbedding"]["embedding"] += gradients[
+            "OutputEmbedding"
+        ]["embedding"]
         return gradients, d_out

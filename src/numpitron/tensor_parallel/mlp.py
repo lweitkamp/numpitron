@@ -7,7 +7,13 @@ from numpitron import distributed as npdist
 
 
 class TensorParallelMLP(nn.MLP):
-    """Tensor parallel implementation of an MLP block."""
+    """A two-layered Tensor Parallel MLP with a ReLU nonlinear activation.
+    
+    The first linear layer is split along the column dimension to ensure
+    the nonlinear activation works on complete data. The second linear layer
+    is split along the row dimension. All that is required afterwards is
+    an allreduce to complete the output data.
+    """
 
     def __init__(
         self,
