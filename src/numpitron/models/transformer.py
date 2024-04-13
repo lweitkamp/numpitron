@@ -114,3 +114,10 @@ class Transformer(Sequential):
         params = super().init_params(rng)
         params[self.layers[-1].name] = params[self.layers[0].name]
         return params
+
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
+        gradients, d_out = super().backward(ctx, d_out)
+        gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
+            "embedding"
+        ]
+        return gradients, d_out
