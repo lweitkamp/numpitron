@@ -88,6 +88,8 @@ class Transformer(Sequential):
         d_model: int,
         n_heads: int,
         n_layers: int,
+        input_embedding: Layer = nn.InputEmbedding,
+        transformer_block: Layer = TransformerBlock,
         name: str = "Transformer",
         dtype=np.float32,
     ):
@@ -98,12 +100,14 @@ class Transformer(Sequential):
         self.n_heads = n_heads
         self.n_layers = n_layers
 
-        self.layers.append(nn.InputEmbedding(d_model, vocab_size, dtype=dtype))
+        block_name = transformer_block.__class__.__name__
+
+        self.layers.append(input_embedding(d_model, vocab_size, dtype=dtype))
         self.layers.append(nn.PositionalEmbedding(d_model, seq_len, dtype=dtype))
         self.layers.extend(
             [
-                TransformerBlock(
-                    d_model, n_heads, name=f"TransformerBlock_{i}", dtype=dtype
+                transformer_block(
+                    d_model, n_heads, name=f"{block_name}_{i}", dtype=dtype
                 )
                 for i in range(n_layers)
             ]
@@ -117,7 +121,7 @@ class Transformer(Sequential):
 
     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         gradients, d_out = super().backward(ctx, d_out)
-        gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
+        gradients[self.layers[0].name]["embedding"] += gradients["OutputEmbedding"][
             "embedding"
         ]
         return gradients, d_out
