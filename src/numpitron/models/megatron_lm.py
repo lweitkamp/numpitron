@@ -9,6 +9,7 @@ class MegatronLMBlock(Layer):
     """Simple transformer block with
     attn -> norm -> res -> mlp -> norm -> res.
     """
+
     def __init__(
         self,
         d_model: int,
@@ -27,8 +28,8 @@ class MegatronLMBlock(Layer):
             dtype=dtype,
         )
         self.norm1 = nn.LayerNorm(self.d_model, dtype=dtype)
-        self.mlp = tp.TensorParallelInputEmbedding(
-            self.d_model, self.d_model * 4, dtype=dtype
+        self.mlp = tp.TensorParallelMLP(
+            self.d_model, self.d_model * 4, dtype=dtype,
         )
         self.norm2 = nn.LayerNorm(self.d_model, dtype=dtype)
 

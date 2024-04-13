@@ -22,7 +22,7 @@
         "dataset_validation_path": "examples/shakespeare_char_val.bin"
     },
     "loss": {
-        "layer_type": "SoftmaxCrossEntropy",
+        "layer_type": "TensorParallelSoftmaxCrossEntropy",
         "layer_config": {}
     },
 

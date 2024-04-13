@@ -26,7 +26,8 @@ def step(
     # Backward pass.
     _, d_out = loss.backward(ctx_loss, None)
     gradients, d_out = model.backward(ctx, d_out)
-    gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
+    # gradients["InputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
+    gradients["TensorParallelInputEmbedding"]["embedding"] += gradients["OutputEmbedding"][
         "embedding"
     ]
 

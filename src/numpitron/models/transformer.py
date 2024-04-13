@@ -31,12 +31,7 @@ class TransformerBlock(Layer):
         self.mlp = nn.MLP(self.d_model, self.d_model * 4, dtype=dtype)
         self.norm2 = nn.LayerNorm(self.d_model, dtype=dtype)
 
-    def init_params(
-        self, rng: Generator
-    ) -> dict[
-        str,
-        np.ndarray,
-    ]:
+    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         params = {
             "attention": self.attention.init_params(rng),
             "norm1": self.norm1.init_params(rng),
@@ -47,15 +42,9 @@ class TransformerBlock(Layer):
 
     def forward(
         self,
-        params: dict[
-            str,
-            np.ndarray,
-        ],
+        params: dict[str, np.ndarray],
         inputs: np.ndarray,
-    ) -> tuple[
-        dict,
-        np.ndarray,
-    ]:
+    ) -> tuple[dict, np.ndarray]:
         attention_ctx, inputs_ = self.attention(params["attention"], inputs)
         norm1_ctx, inputs_ = self.norm1(params["norm1"], inputs_)
         inputs = inputs_ + inputs
@@ -73,14 +62,7 @@ class TransformerBlock(Layer):
 
         return ctx, inputs
 
-    def backward(
-        self,
-        ctx: dict,
-        d_out: np.ndarray,
-    ) -> tuple[
-        dict,
-        np.ndarray,
-    ]:
+    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
         norm2_gradients, d_out = self.norm2.backward(ctx["norm2"], d_out)
         mlp_gradients, d_out = self.mlp.backward(ctx["mlp"], d_out)
         norm1_gradients, d_out = self.norm2.backward(ctx["norm1"], d_out)
@@ -128,12 +110,7 @@ class Transformer(Sequential):
         )
         self.layers.append(nn.OutputEmbedding(d_model, vocab_size, dtype=dtype))
 
-    def init_params(
-        self, rng: Generator
-    ) -> dict[
-        str,
-        np.ndarray,
-    ]:
+    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
         params = super().init_params(rng)
         params[self.layers[-1].name] = params[self.layers[0].name]
         return params
