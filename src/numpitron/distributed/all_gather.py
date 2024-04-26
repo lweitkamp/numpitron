@@ -25,7 +25,8 @@ def all_gather(
         np.prod(destination_tensor.shape), dtype=source_tensor.dtype
     )
     group.Allgather(source_tensor, receiving_buffer)
-    receiving_buffer = np.split(receiving_buffer, group.Get_size(), axis)
+
+    receiving_buffer = np.split(receiving_buffer, group.Get_size(), 0)
     receiving_buffer = np.concatenate(
         [x.reshape(source_tensor.shape) for x in receiving_buffer],
         axis=axis,

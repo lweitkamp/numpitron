@@ -20,6 +20,8 @@ def scatter(
         src (int): Rank from which we scatter the tensor.
         group (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
-    scatter_list = np.split(source_tensor, group.Get_size(), axis=axis)
-    scatter_list = np.concatenate([np.ravel(x) for x in scatter_list])
+    scatter_list = np.concatenate([
+        x.reshape(-1)
+        for x in np.split(source_tensor, group.Get_size(), axis=axis)
+    ])
     group.Scatterv(scatter_list, destination_tensor, root=src)
