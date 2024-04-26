@@ -1,6 +1,8 @@
+from abc import abstractmethod
+from dataclasses import asdict, dataclass, replace
 from typing import Callable
+
 import numpy as np
-from dataclasses import dataclass, asdict, replace
 
 from numpitron import distributed as npdist
 
@@ -17,6 +19,13 @@ class Layer:
         self.ctx = {}  # Backward pass variables.
         self.parameters = {}  # Anything requiring a gradient.
         self.is_scattered = False
+
+    @abstractmethod
+    def forward(self):
+        ...
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
 
     def add_parameter(
         self, name, init_fn: Callable | np.ndarray, shard_axis: int | None = None
