@@ -1,80 +1,63 @@
-import string
-
+from typing import Callable
 import numpy as np
-from numpy.random import Generator
-
-from numpitron.nn.core import Layer
+from dataclasses import dataclass, asdict
 
 
-def to_tuple(dim: tuple | int) -> tuple[int, ...]:
-    return tuple([dim]) if isinstance(dim, int) else dim
+@dataclass
+class Parameter:
+    data: np.ndarray
+    gradient: np.ndarray
+    shard_axis: int | None = None
+
+
+class Layer:
+    def __init__(self):
+        self.ctx = {}  # Backward pass variables.
+        self.parameters = {}  # Anything requiring a gradient.
+
+    def add_parameter(
+        self, name, init_fn: Callable | np.ndarray, shard_axis: int | None = None
+    ) -> None:
+        """Add a parameter, any numpy array that also has a gradient."""
+        data = init_fn() if callable(init_fn) else init_fn
+        setattr(
+            self,
+            name,
+            Parameter(data=data, gradient=np.zeros_like(data), shard_axis=shard_axis),
+        )
+        self.parameters[name] = getattr(self, name)
+
+    def to_dict(self):
+        """Return a dictionary representation of this layer."""
+        return {name: asdict(getattr(self, name)) for name in self.parameters}
+
+    def from_dict(self, layer_dict: dict[str, dict]):
+        for name, parameter in layer_dict.items():
+            self.add_parameter(name, parameter["data"], parameter["shard_axis"])
+
+    def scatter(self):
+        """Scatter this layer in place."""
+        return
+
+    def all_gather(self):
+        """All-gather this layer in place."""
+        return
+
 
 
 class Linear(Layer):
-    """A generalized linear layer. Works on integer and tuple dimensions."""
+    def __init__(self, d_in: int, d_out: int, shard_axis: int | None = None):
+        super().__init__()
+        self.add_parameter("weight", np.zeros((d_in, d_out)), shard_axis)
+        self.add_parameter("bias", np.zeros((d_out,)), shard_axis)
 
-    def __init__(
-        self,
-        input_dim: tuple | int,
-        output_dim: tuple | int,
-        use_bias:  bool = True,
-        name: str = "Linear",
-        dtype=np.float32,
-    ):
-        super().__init__(name=name, dtype=dtype)
-        input_dim = to_tuple(input_dim)
-        output_dim = to_tuple(output_dim)
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        outputs = np.einsum("bsd, dh -> bsh", inputs, self.weight) + self.bias
+        self.ctx["inputs"] = inputs
+        return outputs
 
-        # format the einsums for this layer.
-        ascii_options = list(string.ascii_letters)
-        self.in_chr = "".join(ascii_options.pop() for _ in range(len(input_dim)))
-        self.out_chr = "".join(ascii_options.pop() for _ in range(len(output_dim)))
-
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.use_bias = use_bias
-
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        params: dict[str, np.ndarray] = {
-            "weight": rng.random(self.input_dim + self.output_dim) * 0.02,
-        }
-        if self.use_bias:
-            params["bias"] = np.zeros(self.output_dim)
-        return {key: value.astype(self.dtype) for key, value in params.items()}
-
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        """Perform a forward pass in the linear layer, y = Wx + b."""
-        ctx: dict = {"inputs": np.copy(inputs), "weight": params["weight"]}
-
-        outputs = np.einsum(
-            f"...{self.in_chr}, ...{self.in_chr}{self.out_chr} -> ...{self.out_chr}",
-            inputs,
-            params["weight"],
-        )
-
-        if self.use_bias:
-            outputs = outputs + params["bias"]
-
-        return ctx, outputs
-
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        """Perform a backward pass, calculating the gradients."""
-        weight_gradient = np.einsum(
-            f"...{self.in_chr}, ...{self.out_chr} -> ...{self.in_chr}{self.out_chr}",
-            ctx["inputs"],
-            d_out,
-        )
-
-        gradients = {"weight": weight_gradient.sum(axis=(0, 1))}
-        if self.use_bias:
-            gradients["bias"] = d_out.sum(axis=(0, 1))
-
-
-        d_out = np.einsum(
-            f"...{self.out_chr}, {self.in_chr}{self.out_chr} -> ...{self.in_chr}",
-            d_out,
-            ctx["weight"],
-        )
-        return gradients, d_out
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        weight_gradient = np.einsum("bsd, bsh -> dh", self.ctx["inputs"], d_out)
+        bias_gradient = d_out.sum(axis=(0, 1))
+        d_out = np.einsum("bsh, dh -> bsd", d_out, self.weight)
+        return d_out
