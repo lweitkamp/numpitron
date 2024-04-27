@@ -18,6 +18,7 @@ class Layer:
     def __init__(self):
         self.ctx = {}  # Backward pass variables.
         self.parameters = {}  # Anything requiring a gradient.
+        self.settings = {}  # Anything that is required for initializing itself.
         self.is_scattered = False
 
     @abstractmethod
@@ -41,6 +42,10 @@ class Layer:
         setattr(self, name, Parameter(data=data, gradient=None, shard_axis=shard_axis))
         self.parameters[name] = getattr(self, name)
 
+    def add_setting(self, name, value):
+        setattr(self, name, value)
+        self.settings[name] = value
+
     def update_parameter(self, name: str, **updates):
         current_parameter = getattr(self, name)
         setattr(self, name, replace(current_parameter, **updates))
@@ -48,12 +53,14 @@ class Layer:
 
     def to_dict(self):
         """Return a dictionary representation of this layer."""
-        return {name: asdict(getattr(self, name)) for name in self.parameters}
+        parameters = {name: asdict(getattr(self, name)) for name in self.parameters}
+        return {"settings": self.settings, "parameters": parameters}
 
     @classmethod
-    def from_dict(cls, layer_dict: dict[str, dict], **kwargs):
-        layer = cls(**kwargs)
-        for name, parameter in layer_dict.items():
+    def from_dict(cls, layer_dict: dict[str, dict]):
+        settings, parameters = layer_dict["settings"], layer_dict["parameters"]
+        layer = cls(**settings)
+        for name, parameter in parameters.items():
             layer.add_parameter(name, parameter["data"], parameter["shard_axis"])
         return layer
 

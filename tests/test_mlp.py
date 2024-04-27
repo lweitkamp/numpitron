@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from numpitron.nn import Linear
+from numpitron.nn import MLP
 from numpitron import distributed as npdist
 
 

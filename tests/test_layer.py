@@ -32,6 +32,7 @@ def test_to_dict():
     layer.add_parameter("test_weight1", np.ones((5,)))
     layer.add_parameter("test_weight2", np.ones((20, 20)), 1)
     layer_dict = layer.to_dict()
+    layer_dict = layer_dict["parameters"]
 
     np.testing.assert_array_equal(layer_dict["test_weight1"]["data"], np.ones((5,)))
     np.testing.assert_array_equal(layer_dict["test_weight2"]["data"], np.ones((20, 20)))
@@ -44,15 +45,18 @@ def test_to_dict():
 def test_from_dict():
     layer = Layer.from_dict(
         {
-            "test_weight1": {
-                "data": np.ones((5,)),
-                "gradient": None,
-                "shard_axis": None,
-            },
-            "test_weight2": {
-                "data": np.ones((20, 20)),
-                "gradient": None,
-                "shard_axis": 1,
+            "settings": {},
+            "parameters": {
+                "test_weight1": {
+                    "data": np.ones((5,)),
+                    "gradient": None,
+                    "shard_axis": None,
+                },
+                "test_weight2": {
+                    "data": np.ones((20, 20)),
+                    "gradient": None,
+                    "shard_axis": 1,
+                },
             },
         }
     )
