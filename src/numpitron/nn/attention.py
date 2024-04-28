@@ -2,7 +2,7 @@ import numpy as np
 from numpy.random import Generator
 
 import numpitron.nn as nn
-from numpitron.nn.core import Layer
+from numpitron.nn.layer import Layer
 
 
 class Attention(Layer):
@@ -13,10 +13,9 @@ class Attention(Layer):
         d_model: int,
         n_heads: int,
         d_hidden: int,
-        name: str = "Attention",
-        dtype=np.float32,
     ):
-        super().__init__(name=name, dtype=dtype)
+        super().__init__()
+        self.add
         self.d_model = d_model
         self.n_heads = n_heads
         self.d_hidden = d_hidden

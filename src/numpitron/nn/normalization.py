@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.random import Generator
 
-from numpitron.nn.core import Layer
+from numpitron.nn.layer import Layer
 
 
 class LayerNorm(Layer):
@@ -11,55 +11,40 @@ class LayerNorm(Layer):
         self,
         d_model: int,
         eps: float = 1e-5,
-        name: str = "Linear",
-        dtype=np.float32,
     ):
-        super().__init__(name=name, dtype=dtype)
-        self.d_model = d_model
-        self.eps = eps
+        super().__init__()
+        self.add_settings({"d_model": d_model, "eps": eps})
+        self.add_parameter("weight", np.ones((d_model,)))
+        self.add_parameter("bias", np.ones((d_model,)))
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        params: dict[str, np.ndarray] = {
-            "weight": rng.random((self.d_model,)) * 0.02,
-            "bias": np.zeros((self.d_model,)),
-        }
-        return {key: value.astype(self.dtype) for key, value in params.items()}
-
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        """Calculate mean and standard deviation of the inputs along the
-        last dimension and normalize the inputs. Additionally,
-        multiply the normalized input with weights and add a bias."""
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
         mean = inputs.mean(axis=-1, keepdims=True)
         var = inputs.var(axis=-1, keepdims=True)
         normed = (inputs - mean) / np.sqrt(var + self.eps)
-        outputs = params["weight"] * normed + params["bias"]
+        outputs = self.weight.data * normed + self.bias.data
 
-        ctx = {
-            "weight": params["weight"],
-            "inputs": inputs,
-            "mean": mean,
-            "var": var,
-        }
+        self.ctx |= {"inputs": inputs, "mean": mean, "var": var}
+        return outputs
 
-        return ctx, outputs
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        inputs, mean, var = (
+            self.ctx.pop("inputs"),
+            self.ctx.pop("mean"),
+            self.ctx.pop("var"),
+        )
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        """The most straightforward reference is surpisingly from the Triton tutorial
-        https://triton-lang.org/main/getting-started/tutorials/05-layer-norm.html."""
-        inputs_normed = (ctx["inputs"] - ctx["mean"]) / np.sqrt(ctx["var"] + self.eps)
+        inputs_normed = (inputs - mean) / np.sqrt(var + self.eps)
 
-        gradients = {
-            "weight": np.sum(d_out * inputs_normed, axis=(0, 1)),
-            "bias": d_out.sum(axis=(0, 1)),
-        }
+        self.update_parameter(
+            "weight", gradient=np.sum(d_out * inputs_normed, axis=(0, 1))
+        )
+        self.update_parameter("bias", gradient=d_out.sum(axis=(0, 1)))
 
-        wdy = ctx["weight"] * d_out
+        wdy = self.weight.data * d_out
         c1 = np.sum(inputs_normed * wdy, axis=-1) / self.d_model
         c2 = wdy.sum(axis=-1) / self.d_model
-        d_out = (wdy - c1[..., None] * inputs_normed - c2[..., None]) / ctx[
-            "inputs"
-        ].std(axis=-1, keepdims=True)
+        d_out = (wdy - c1[..., None] * inputs_normed - c2[..., None]) / inputs.std(
+            axis=-1, keepdims=True
+        )
 
-        return gradients, d_out
+        return d_out
