@@ -46,6 +46,10 @@ class Layer:
         setattr(self, name, value)
         self.settings[name] = value
 
+    def add_settings(self, settings: dict):
+        for key, value in settings.items():
+            self.add_setting(key, value)
+
     def update_parameter(self, name: str, **updates):
         current_parameter = getattr(self, name)
         setattr(self, name, replace(current_parameter, **updates))

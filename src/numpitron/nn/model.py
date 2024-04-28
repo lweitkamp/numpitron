@@ -17,12 +17,15 @@ class Model(Layer):
         self.layers[name] = layer
 
     def scatter(self, src: int = 0) -> None:
-        for layer in self.layers:
+        assert not self.is_scattered, "Cannot scatter an already scattered model."
+        for layer in self.layers.values():
             layer.scatter(src)
+        self.is_scattered = True
 
     def all_gather(self) -> None:
-        for layer in self.layers:
+        for layer in self.layers.values():
             layer.all_gather()
+        self.is_scattered = False
 
     def to_dict(self) -> dict:
         """Return a dictionary representation of this model."""
@@ -33,6 +36,8 @@ class Model(Layer):
     def from_dict(cls, model_dict: dict[str, dict]) -> Self:
         settings, layers = model_dict["settings"], model_dict["layers"]
         model = cls(**settings)
-        for name, layer in layers.items():
-            model.add_layer(name, getattr(model, name).from_dict(layer))
+        for name in model.layers:
+            assert name in layers, f"Expected {name} in {layers}."
+
+            model.add_layer(name, getattr(model, name).from_dict(layers[name]))
         return model

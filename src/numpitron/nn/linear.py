@@ -10,10 +10,18 @@ class Linear(Layer):
         use_bias: bool = True,
         weight_shard_axis: int | None = None,
         bias_shard_axis: int | None = None,
-        init_fn=lambda shape: np.ones(shape)
+        init_fn=lambda shape: np.ones(shape),
     ):
         super().__init__()
-        self.use_bias = use_bias
+        self.add_settings(
+            {
+                "d_in": d_in,
+                "d_out": d_out,
+                "use_bias": use_bias,
+                "weight_shard_axis": weight_shard_axis,
+                "bias_shard_axis": bias_shard_axis,
+            }
+        )
 
         self.add_parameter("weight", init_fn((d_in, d_out)), weight_shard_axis)
         if self.use_bias:
