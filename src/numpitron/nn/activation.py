@@ -9,27 +9,26 @@ def softmax(inputs: np.ndarray, axis: int = -1) -> np.ndarray:
     return x_ / x_.sum(axis=axis, keepdims=True)
 
 
-# class Softmax(Layer):
-#     """Softmax layer. Has no associated weights."""
+class Softmax(Layer):
+    """Softmax layer. Has no associated weights."""
 
-#     def __init__(self, axis: int = -1, name: str = "Softmax", dtype=None):
-#         super().__init__(name=name, dtype=dtype)
-#         self.axis = axis
+    def __init__(self, axis: int = -1):
+        super().__init__()
+        self.add_parameter("axis", axis)
 
-#     def forward(
-#         self, params: dict[str, np.ndarray], inputs: np.ndarray
-#     ) -> tuple[dict, np.ndarray]:
-#         outputs = softmax(inputs)
-#         return {"inputs_sm": np.copy(outputs)}, outputs
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        outputs = softmax(inputs)
+        self.ctx["inputs_sm"] = outputs
+        return outputs
 
-#     def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-#         inputs_sm = ctx["inputs_sm"]
-#         _, _, seq_len, _ = inputs_sm.shape
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        inputs_sm = self.ctx.pop("inputs_sm")
+        _, _, seq_len, _ = inputs_sm.shape
 
-#         left = np.einsum("...ij, jk -> ...ijk", inputs_sm, np.eye(seq_len))
-#         right = np.einsum("...ij, ...ik -> ...ijk", inputs_sm, inputs_sm)
-#         d_out = (d_out[..., None, :] @ (left - right)).reshape(inputs_sm.shape)
-#         return {}, d_out
+        left = np.einsum("...ij, jk -> ...ijk", inputs_sm, np.eye(seq_len))
+        right = np.einsum("...ij, ...ik -> ...ijk", inputs_sm, inputs_sm)
+        d_out = (d_out[..., None, :] @ (left - right)).reshape(inputs_sm.shape)
+        return d_out
 
 
 class ReLU(Layer):

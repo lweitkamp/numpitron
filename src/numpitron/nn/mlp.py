@@ -1,5 +1,4 @@
 import numpy as np
-from numpitron.nn.layer import Layer
 from numpitron.nn.activation import ReLU
 from numpitron.nn.linear import Linear
 from numpitron.nn.model import Model
@@ -13,7 +12,6 @@ class MLP(Model):
         d_in: int,
         d_hidden: int,
         d_out: int,
-        **kwargs,
     ):
         super().__init__()
         self.add_layer(
@@ -21,19 +19,19 @@ class MLP(Model):
             Linear(d_in=d_in, d_out=d_hidden, weight_shard_axis=1, bias_shard_axis=0),
         )
         self.add_layer(
-            "row_linear", Linear(d_in=d_in, d_out=d_out, weight_shard_axis=0)
+            "row_linear", Linear(d_in=d_hidden, d_out=d_out, weight_shard_axis=0)
         )
-        self.add_layer("relu", ReLU(), **kwargs)
+        self.add_layer("relu", ReLU())
 
         self.row_linear.use_bias = npdist.tensor_parallel_rank() == 0
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        outputs = self.column_linear(outputs)
+        outputs = self.column_linear(inputs)
         outputs = self.relu(outputs)
         outputs = self.row_linear(outputs)
 
-        if npdist.tensor_parallel_size() > 1:
-            npdist.all_reduce(outputs, npdist.tensor_parallel_group())
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
+            npdist.all_reduce(outputs, group=npdist.tensor_parallel_group())
 
         return outputs
 
@@ -42,7 +40,7 @@ class MLP(Model):
         d_out = self.relu.backward(d_out)
         d_out = self.column_linear.backward(d_out)
 
-        if npdist.tensor_parallel_size() > 1:
-            npdist.all_reduce(d_out, npdist.tensor_parallel_group())
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
+            npdist.all_reduce(d_out, group=npdist.tensor_parallel_group())
 
         return d_out

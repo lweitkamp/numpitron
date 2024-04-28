@@ -1,97 +1,77 @@
 import numpy as np
-from numpy.random import Generator
 
-from numpitron.nn.core import Layer
+import numpitron.distributed as npdist
+from numpitron.nn.layer import Layer
 
 
 class InputEmbedding(Layer):
-    """The input embedding lookup-table."""
+    def __init__(self, d_model: int, vocab_size: int):
+        super().__init__()
+        self.add_settings({"d_model": d_model, "vocab_size": vocab_size})
+        self.add_parameter("embedding", np.ones((d_model, vocab_size)))
 
-    def __init__(
-        self, d_model: int, vocab_size: int, name="InputEmbedding", dtype=np.float32
-    ):
-        super().__init__(name=name, dtype=dtype)
-        self.d_model = d_model
-        self.vocab_size = vocab_size
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        chunk_start = npdist.tensor_parallel_rank() * self.embedding.data.shape[1]
+        chunk_end = chunk_start + self.embedding.data.shape[1]
+        mask = np.logical_or(inputs < chunk_start, inputs >= chunk_end)
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        params: dict[str, np.ndarray] = {
-            "embedding": rng.random((self.d_model, self.vocab_size)),
-        }
-        return {key: value.astype(self.dtype) for key, value in params.items()}
+        # Set tokens to chunk range, mask tokens outside range.
+        inputs = inputs - chunk_start
+        inputs[mask] = 0
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        """Given an embedding table and input tokens, embed the tokens.
+        # Take the correct embeddings and mask outside range.
+        inputs_embedding = np.take(self.embedding.data.T, inputs, axis=0)
+        inputs_embedding[mask, :] = 0.0
 
-        Arguments:
-            params (dict[str, np.ndarray]): parameters with key 'embedding'
-                present.
-            inputs (np.ndarray): Input tokens of type int32.
+        if npdist.tensor_parallel_size() > 1:
+            npdist.all_reduce(inputs_embedding, group=npdist.tensor_parallel_group())
 
-        Returns:
-            Token embeddings.
-        """
-        inputs_embedding = np.take(params["embedding"].T, inputs, axis=0)
-        ctx = {"inputs": inputs, "embedding": params["embedding"]}
-        return ctx, inputs_embedding
+        self.ctx["inputs"] = inputs
+        self.ctx["mask"] = mask
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[np.ndarray, dict]:
-        gradients = {"embedding": np.zeros_like(ctx["embedding"])}
-        np.add.at(gradients["embedding"].T, ctx["inputs"], d_out)
-        return gradients, d_out
+        return inputs_embedding
+
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        gradient = np.zeros_like(self.embedding.data.shape)
+        inputs = self.ctx.pop("inputs")
+        mask = self.ctx.pop("mask")
+        np.add.at(gradient.T, inputs[~mask], d_out[~mask])
+        self.update_parameter("embedding", gradient=gradient)
+        return None
 
 
 class OutputEmbedding(Layer):
-    """The output embedding producing logits. weight are tied with that
-    of the input embedding layer."""
+    def __init__(self, d_model: int, vocab_size: int):
+        super().__init__()
+        self.add_settings({"d_model": d_model, "vocab_size": vocab_size})
+        self.add_parameter("embedding", np.ones((d_model, vocab_size)))
 
-    def __init__(
-        self, d_model: int, vocab_size: int, name="OutputEmbedding", dtype=np.float32
-    ):
-        super().__init__(name=name, dtype=dtype)
-        self.d_model = d_model
-        self.vocab_size = vocab_size
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        outputs_embedding = inputs @ self.embedding.data
+        self.ctx["inputs"] = inputs
+        return outputs_embedding
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        return {}
-
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        """Calculate the logits through a simple matrix product."""
-        ctx = {"inputs": inputs, "embedding": params["embedding"]}
-        outputs_embedding = inputs @ params["embedding"]
-        return ctx, outputs_embedding
-
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        """Perform a backward pass, calculating the gradients."""
-        gradients = {"embedding": np.einsum("bsd, bsv -> dv", ctx["inputs"], d_out)}
-        d_out = d_out @ ctx["embedding"].T
-        return gradients, d_out
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        self.update_parameter(
+            "embedding",
+            gradient=np.einsum("bsd, bsv -> dv", self.ctx.pop("inputs"), d_out),
+        )
+        d_out = d_out @ self.embedding.data.T
+        return d_out
 
 
-class PositionalEmbedding(Layer):
-    """Technically an encoding, just using fourier features."""
-
-    def __init__(
-        self, d_model: int, seq_len: int, name="PositionalEmbedding", dtype=np.float32
-    ):
-        super().__init__(name=name, dtype=dtype)
+class PositionalEncoding(Layer):
+    def __init__(self, d_model: int, seq_len: int):
+        super().__init__()
+        self.add_settings({"d_model": d_model, "seq_len": seq_len})
         pos = np.expand_dims(np.arange(0, seq_len), -1)
         _2i = np.arange(d_model, step=2) / d_model
-        encoding = np.zeros((seq_len, d_model), dtype=dtype)
+        encoding = np.zeros((seq_len, d_model), dtype=np.float32)
         encoding[:, 0::2] = np.sin(pos / (10000**_2i))
         encoding[:, 1::2] = np.cos(pos / (10000**_2i))
         self.encoding = encoding
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
         _, seq_len, *_ = inputs.shape
         inputs_encoding = self.encoding[:seq_len, :] + inputs
-        return {}, inputs_encoding
-
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        return {}, d_out
+        return inputs_encoding

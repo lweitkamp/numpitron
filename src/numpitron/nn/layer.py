@@ -25,6 +25,9 @@ class Layer:
     def forward(self):
         ...
 
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        return d_out
+
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
 

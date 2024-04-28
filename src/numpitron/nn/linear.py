@@ -1,4 +1,5 @@
 import numpy as np
+
 from numpitron.nn.layer import Layer
 
 
