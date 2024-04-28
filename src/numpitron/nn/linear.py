@@ -24,9 +24,11 @@ class Linear(Layer):
             }
         )
 
-        self.add_parameter("weight", init_fn((d_in, d_out)), weight_shard_axis)
+        self.add_parameter(
+            "weight", init_fn((d_in, d_out)).astype(np.float32), weight_shard_axis
+        )
         if self.use_bias:
-            self.add_parameter("bias", init_fn((d_out,)), bias_shard_axis)
+            self.add_parameter("bias", init_fn((d_out,)).astype(np.float32), bias_shard_axis)
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         outputs = np.einsum("bsd, dh -> bsh", inputs, self.weight.data)
