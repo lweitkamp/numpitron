@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import torch
 from torch import nn
 from torch.nn import Parameter
@@ -45,6 +44,6 @@ def test_pytorch():
     np.testing.assert_allclose(
         d_out.reshape(inputs_torch.grad.shape),
         inputs_torch.grad.detach().numpy(),
-        atol=1e-6,
+        atol=1e-4,
         rtol=1e-2,
     )

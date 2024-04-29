@@ -23,7 +23,7 @@ class InputEmbedding(Layer):
         inputs_embedding = np.take(self.embedding.data.T, inputs, axis=0)
         inputs_embedding[mask, :] = 0.0
 
-        if npdist.tensor_parallel_size() > 1:
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
             npdist.all_reduce(inputs_embedding, group=npdist.tensor_parallel_group())
 
         self.ctx["inputs"] = inputs
@@ -32,7 +32,7 @@ class InputEmbedding(Layer):
         return inputs_embedding
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
-        gradient = np.zeros_like(self.embedding.data.shape)
+        gradient = np.zeros_like(self.embedding.data)
         inputs = self.ctx.pop("inputs")
         mask = self.ctx.pop("mask")
         np.add.at(gradient.T, inputs[~mask], d_out[~mask])
