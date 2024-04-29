@@ -94,12 +94,6 @@ def test_pytorch():
     d_out = linear.backward(np.ones_like(outputs))
 
     np.testing.assert_allclose(
-        d_out.reshape(inputs_torch.grad.shape),
-        inputs_torch.grad.detach().numpy(),
-        atol=1e-6,
-        rtol=1e-2,
-    )
-    np.testing.assert_allclose(
         outputs, outputs_torch.detach().numpy().reshape(b, s, d), atol=1e-6, rtol=1e-2
     )
     np.testing.assert_allclose(
@@ -108,4 +102,10 @@ def test_pytorch():
     np.testing.assert_allclose(
         linear.bias.gradient,
         linear_torch.bias.grad,
+    )
+    np.testing.assert_allclose(
+        d_out.reshape(inputs_torch.grad.shape),
+        inputs_torch.grad.detach().numpy(),
+        atol=1e-6,
+        rtol=1e-2,
     )

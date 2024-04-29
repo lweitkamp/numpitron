@@ -42,7 +42,13 @@ class Layer:
                 data.shape
             ), f"Cannot shard {shard_axis} on {len(data.shape)} dims."
 
-        setattr(self, name, Parameter(data=data, gradient=None, shard_axis=shard_axis))
+        setattr(
+            self,
+            name,
+            Parameter(
+                data=data.astype(np.float32), gradient=None, shard_axis=shard_axis
+            ),
+        )
         self.parameters[name] = getattr(self, name)
 
     def add_setting(self, name, value):

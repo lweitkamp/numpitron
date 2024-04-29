@@ -1,17 +1,10 @@
 import numpy as np
-from numpy.random import Generator
 
 from numpitron.nn.layer import Layer
 
 
 class LayerNorm(Layer):
-    """Layer normalization - normalize the inputs over the last dimension."""
-
-    def __init__(
-        self,
-        d_model: int,
-        eps: float = 1e-5,
-    ):
+    def __init__(self, d_model: int, eps: float = 1e-5):
         super().__init__()
         self.add_settings({"d_model": d_model, "eps": eps})
         self.add_parameter("weight", np.ones((d_model,)))
