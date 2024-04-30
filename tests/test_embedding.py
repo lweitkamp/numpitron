@@ -72,8 +72,11 @@ def test_tensor_parallel_input_output_embedding_pytorch():
 
     input_embedding.all_gather()
 
+    outputs2_gathered = np.zeros(outputs2_torch.shape, dtype=np.float32)
+    npdist.all_gather(outputs2, outputs2_gathered, group=npdist.tensor_parallel_group())
+
     np.testing.assert_allclose(outputs1, outputs1_torch.detach().numpy())
-    # np.testing.assert_allclose(outputs2, outputs2_torch.detach().numpy())
-    # np.testing.assert_allclose(
-    #     input_embedding.embedding.gradient.T, input_embedding_torch.weight.grad
-    # )
+    np.testing.assert_allclose(outputs2_gathered, outputs2_torch.detach().numpy())
+    np.testing.assert_allclose(
+        input_embedding.embedding.gradient.T, input_embedding_torch.weight.grad
+    )
