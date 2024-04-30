@@ -1,7 +1,7 @@
 import numpy as np
 
 import numpitron.distributed as npdist
-from numpitron.nn.layer import Layer, Parameter
+from numpitron.nn.layer import Layer
 
 
 class InputEmbedding(Layer):

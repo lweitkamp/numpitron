@@ -88,7 +88,7 @@ class Layer:
 
             new_shape = list(parameter.data.shape)
             new_shape[parameter.shard_axis] //= npdist.tensor_parallel_size()
-            new_data = np.zeros(new_shape)
+            new_data = np.zeros(new_shape, dtype=parameter.data.dtype)
             npdist.scatter(
                 parameter.data,
                 new_data,
@@ -99,7 +99,7 @@ class Layer:
             update["data"] = new_data
 
             if parameter.gradient is not None:
-                new_gradient = np.zeros(new_shape)
+                new_gradient = np.zeros(new_shape, dtype=parameter.gradient.dtype)
                 npdist.scatter(
                     parameter.gradient,
                     new_gradient,
@@ -123,8 +123,7 @@ class Layer:
             new_shape = list(parameter.data.shape)
             new_shape[parameter.shard_axis] *= npdist.tensor_parallel_size()
 
-            print(new_shape)
-            new_data = np.zeros(new_shape)
+            new_data = np.zeros(new_shape, dtype=parameter.data.dtype)
             npdist.all_gather(
                 parameter.data,
                 new_data,
@@ -134,7 +133,7 @@ class Layer:
             update["data"] = new_data
 
             if parameter.gradient is not None:
-                new_gradient = np.zeros(new_shape)
+                new_gradient = np.zeros(new_shape, dtype=parameter.gradient.dtype)
                 npdist.all_gather(
                     parameter.gradient,
                     new_gradient,
