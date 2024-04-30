@@ -10,7 +10,7 @@ npdist.init(tp_size=npdist.world_size())
 
 
 
-def test_pytorch():
+def test_layernorm_pytorch():
     b, s, d = 32, 64, 128
 
     rng = np.random.default_rng(42)

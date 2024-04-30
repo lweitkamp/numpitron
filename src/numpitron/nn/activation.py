@@ -14,20 +14,20 @@ class Softmax(Layer):
 
     def __init__(self, axis: int = -1):
         super().__init__()
-        self.add_parameter("axis", axis)
+        self.add_setting("axis", axis)
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        outputs = softmax(inputs)
-        self.ctx["inputs_sm"] = outputs
+        outputs = softmax(inputs, self.axis)
+        self.ctx["outputs"] = outputs
         return outputs
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
-        inputs_sm = self.ctx.pop("inputs_sm")
-        _, _, seq_len, _ = inputs_sm.shape
+        outputs = self.ctx.pop("outputs")
+        _, _, seq_len, _ = outputs.shape
 
-        left = np.einsum("...ij, jk -> ...ijk", inputs_sm, np.eye(seq_len))
-        right = np.einsum("...ij, ...ik -> ...ijk", inputs_sm, inputs_sm)
-        d_out = (d_out[..., None, :] @ (left - right)).reshape(inputs_sm.shape)
+        left = np.einsum("...ij, jk -> ...ijk", outputs, np.eye(seq_len))
+        right = np.einsum("...ij, ...ik -> ...ijk", outputs, outputs)
+        d_out = (d_out[..., None, :] @ (left - right)).reshape(outputs.shape)
         return d_out
 
 

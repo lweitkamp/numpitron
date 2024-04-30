@@ -1,5 +1,3 @@
-"""Test the distributed communications library. If you want to test it, ensure
-that you run it with n>1 processes."""
 import numpy as np
 import pytest
 

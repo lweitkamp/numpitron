@@ -1,14 +1,14 @@
 import numpy as np
 
 import numpitron.distributed as npdist
-from numpitron.nn.layer import Layer
+from numpitron.nn.layer import Layer, Parameter
 
 
 class InputEmbedding(Layer):
     def __init__(self, d_model: int, vocab_size: int):
         super().__init__()
         self.add_settings({"d_model": d_model, "vocab_size": vocab_size})
-        self.add_parameter("embedding", np.ones((d_model, vocab_size)))
+        self.add_parameter("embedding", np.ones((d_model, vocab_size)), shard_axis=1)
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         chunk_start = npdist.tensor_parallel_rank() * self.embedding.data.shape[1]
@@ -32,7 +32,11 @@ class InputEmbedding(Layer):
         return inputs_embedding
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
-        gradient = np.zeros_like(self.embedding.data)
+        gradient = (
+            np.zeros_like(self.embedding.data)
+            if self.embedding.gradient is None
+            else self.embedding.gradient
+        )
         inputs = self.ctx.pop("inputs")
         mask = self.ctx.pop("mask")
         np.add.at(gradient.T, inputs[~mask], d_out[~mask])
@@ -41,22 +45,22 @@ class InputEmbedding(Layer):
 
 
 class OutputEmbedding(Layer):
-    def __init__(self, d_model: int, vocab_size: int):
+    def __init__(self, input_embedding: Layer):
         super().__init__()
-        self.add_settings({"d_model": d_model, "vocab_size": vocab_size})
-        self.add_parameter("embedding", np.ones((d_model, vocab_size)))
+        self.input_embedding = input_embedding
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        outputs_embedding = inputs @ self.embedding.data
+        outputs_embedding = inputs @ self.input_embedding.embedding.data
         self.ctx["inputs"] = inputs
         return outputs_embedding
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
-        self.update_parameter(
+        # Embedding is not a parameter of this layer.
+        self.input_embedding.update_parameter(
             "embedding",
             gradient=np.einsum("bsd, bsv -> dv", self.ctx.pop("inputs"), d_out),
         )
-        d_out = d_out @ self.embedding.data.T
+        d_out = d_out @ self.input_embedding.embedding.data.T
         return d_out
 
 
