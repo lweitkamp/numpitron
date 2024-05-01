@@ -55,12 +55,16 @@ class OutputEmbedding(Layer):
         return outputs_embedding
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
-        # Embedding is not a parameter of this layer.
         self.input_embedding.update_parameter(
             "embedding",
             gradient=np.einsum("bsd, bsv -> dv", self.ctx.pop("inputs"), d_out),
         )
+
         d_out = d_out @ self.input_embedding.embedding.data.T
+
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
+            npdist.all_reduce(d_out, group=npdist.tensor_parallel_group())
+
         return d_out
 
 

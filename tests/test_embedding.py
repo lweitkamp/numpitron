@@ -60,17 +60,18 @@ def test_tensor_parallel_input_output_embedding_pytorch():
     )
 
     input_embedding.scatter()
+    output_embedding.scatter()
 
     outputs1 = input_embedding(inputs)
     outputs2 = output_embedding(outputs1)
     outputs1_torch = input_embedding_torch(inputs_torch)
     outputs2_torch = outputs1_torch @ input_embedding_torch.weight.T
 
+    input_embedding.backward(output_embedding.backward(np.ones_like(outputs2)))
     outputs2_torch.sum().backward()
-    d_out1 = output_embedding.backward(np.ones_like(outputs2))
-    _ = input_embedding.backward(d_out1)
 
     input_embedding.all_gather()
+    output_embedding.all_gather()
 
     outputs2_gathered = np.zeros(outputs2_torch.shape, dtype=np.float32)
     npdist.all_gather(outputs2, outputs2_gathered, group=npdist.tensor_parallel_group())

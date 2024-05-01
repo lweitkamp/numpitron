@@ -59,8 +59,8 @@ def test_pytorch():
     outputs = mlp(inputs)
     outputs_torch = mlp_torch(inputs_torch)
 
-    outputs_torch.sum().backward()
     d_out = mlp.backward(np.ones_like(outputs))
+    outputs_torch.sum().backward()
 
     np.testing.assert_allclose(
         outputs.reshape(b * s, d), outputs_torch.detach().numpy(), atol=1e-6, rtol=1e-2

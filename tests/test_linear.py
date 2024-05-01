@@ -90,8 +90,8 @@ def test_pytorch():
     outputs = linear(inputs)
     outputs_torch = linear_torch(inputs_torch)
 
-    outputs_torch.sum().backward()
     d_out = linear.backward(np.ones_like(outputs))
+    outputs_torch.sum().backward()
 
     np.testing.assert_allclose(
         outputs, outputs_torch.detach().numpy().reshape(b, s, d), atol=1e-6, rtol=1e-2

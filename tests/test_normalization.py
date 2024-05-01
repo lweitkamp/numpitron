@@ -28,8 +28,8 @@ def test_layernorm_pytorch():
     outputs = layer_norm(inputs)
     outputs_torch = layer_norm_torch(inputs_torch)
 
-    outputs_torch.sum().backward()
     d_out = layer_norm.backward(np.ones_like(outputs))
+    outputs_torch.sum().backward()
 
     np.testing.assert_allclose(
         outputs, outputs_torch.detach().numpy().reshape(b, s, d), atol=1e-6, rtol=1e-2
