@@ -24,8 +24,8 @@ def test_softmax_pytorch():
     outputs = softmax(inputs)
     outputs_torch = softmax_torch(inputs_torch)
 
-    outputs_torch.sum().backward()
     d_out = softmax.backward(np.ones_like(outputs))
+    outputs_torch.sum().backward()
 
     np.testing.assert_allclose(outputs, outputs_torch.detach().numpy())
     np.testing.assert_allclose(d_out, inputs_torch.grad.detach().numpy(), atol=1e-4)
@@ -46,8 +46,8 @@ def test_relu_pytorch():
     outputs = relu(inputs)
     outputs_torch = relu_torch(inputs_torch)
 
-    outputs_torch.sum().backward()
     d_out = relu.backward(np.ones_like(outputs))
+    outputs_torch.sum().backward()
 
     np.testing.assert_allclose(outputs, outputs_torch.detach().numpy())
     np.testing.assert_allclose(d_out, inputs_torch.grad.detach().numpy())

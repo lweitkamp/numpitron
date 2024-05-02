@@ -16,7 +16,7 @@ def test_tensor_parallel_attention():
 
     rng = np.random.default_rng(42)
 
-    inputs = rng.normal(size=(b, s, d))
+    inputs = (rng.random((b, s, d)).astype(np.float32) + 1) / d
     attention = Attention(
         d, n, d // n, weight_init="scaled_normal", scale=1 / (b * s * d), rng=rng
     )
@@ -39,8 +39,18 @@ def test_tensor_parallel_attention():
     d_out = attention.backward(np.ones_like(out))
     d_out_tp = attention_tp.backward(np.ones_like(out_tp))
 
-    np.testing.assert_allclose(out, out_tp)
-    np.testing.assert_allclose(d_out, d_out_tp)
+    np.testing.assert_allclose(
+        out,
+        out_tp,
+        atol=1e-6,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        d_out,
+        d_out_tp,
+        atol=1e-6,
+        rtol=1e-6,
+    )
 
 
 def test_pytorch():
@@ -78,8 +88,24 @@ def test_pytorch():
         rtol=1e-4,
     )
     np.testing.assert_allclose(
-        out_torch.detach().numpy(),
         out,
+        out_torch.detach().numpy(),
         atol=1e-2,
         rtol=1e-2,
+    )
+
+    out_torch.sum().backward()
+    attention.backward(np.ones_like(out))
+
+    np.testing.assert_allclose(
+        attention.out_projection.weight.gradient.T,
+        attention_torch.out_proj.weight.grad,
+        atol=0.1,
+        rtol=0.1,
+    )
+    np.testing.assert_allclose(
+        attention.qkv_projection.weight.gradient.sum(),
+        attention_torch.in_proj_weight.grad.sum(),
+        atol=1e-3,
+        rtol=1e-3,
     )

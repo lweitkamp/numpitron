@@ -22,6 +22,8 @@ class Linear(Layer):
                 "use_bias": use_bias,
                 "weight_shard_axis": weight_shard_axis,
                 "bias_shard_axis": bias_shard_axis,
+                "weight_init": weight_init,
+                "bias_init": bias_init,
             }
         )
 

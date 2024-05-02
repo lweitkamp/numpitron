@@ -18,7 +18,7 @@ class DummyModel(Model):
         self.add_setting("d_in", d_in)
         self.add_setting("d_out", d_out)
         self.add_layer(
-            "linear", Linear(self.d_in, self.d_out, use_bias=False, weight_shard_axis=1)
+            "linear", Linear(self.d_in, self.d_out, weight_init="zeros", use_bias=False, weight_shard_axis=1)
         )
 
 
@@ -45,7 +45,7 @@ def test_from_dict():
         "settings": {"d_in": 1, "d_out": 2},
         "layers": {
             "linear": {
-                "settings": {"d_in": 1, "d_out": 2, "use_bias": False},
+                "settings": {"d_in": 1, "d_out": 2, "use_bias": False, "weight_init": "zeros"},
                 "parameters": {
                     "weight": {"data": np.zeros((1, 2)), "shard_axis": None}
                 },
