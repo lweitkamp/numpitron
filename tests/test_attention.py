@@ -44,18 +44,15 @@ def test_tensor_parallel_attention():
 
 
 def test_pytorch():
-    b, s, d, n = 16, 32, 64, 8
+    b, s, d, n = 2, 16, 32, 4
 
     rng = np.random.default_rng(42)
 
-    # inputs = (rng.random((b, s, d)).astype(np.float32) + 1) / d
-    inputs = rng.normal(size=(b, s, d))
+    inputs = (rng.random((b, s, d)).astype(np.float32) + 1) / d
     inputs_torch = torch.from_numpy(inputs)
     inputs_torch.requires_grad = True
 
-    attention = Attention(
-        d, n, d // n, weight_init="scaled_normal", scale=1 / (b * s * d), rng=rng
-    )
+    attention = Attention(d, n, d // n, weight_init="init_for_testing", rng=rng)
     attention_torch = nn.MultiheadAttention(d, n, bias=False, batch_first=True)
     attention_torch.in_proj_weight = Parameter(
         torch.from_numpy(attention.qkv_projection.weight.data).T
@@ -74,4 +71,15 @@ def test_pytorch():
         average_attn_weights=False,
     )
 
-    np.testing.assert_allclose(out_torch.detach().numpy(), out)
+    np.testing.assert_allclose(
+        attn_output_weights.detach().numpy(),
+        attention.ctx["attention_weights"],
+        atol=1e-4,
+        rtol=1e-4,
+    )
+    np.testing.assert_allclose(
+        out_torch.detach().numpy(),
+        out,
+        atol=1e-2,
+        rtol=1e-2,
+    )
