@@ -91,10 +91,6 @@ def test_gather(
         np.testing.assert_equal(destination_tensor, np.zeros_like(destination_tensor))
 
 
-def rest_reduce_scatter() -> None:
-    raise Exception()
-
-
 @pytest.mark.parametrize(
     "batch_size,seq_len",
     [(1, 2), (2, 4)],

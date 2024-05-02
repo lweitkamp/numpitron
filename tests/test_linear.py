@@ -13,8 +13,8 @@ npdist.init(tp_size=npdist.world_size())
 def test_linear():
     b, s, d = 32, 64, 128
 
-    inputs = np.ones((b, d))
-    linear = Linear(d, d, init_fn=lambda shape: np.ones(shape))
+    inputs = np.ones((b, s, d))
+    linear = Linear(d, d, weight_init="ones", bias_init="ones")
     outputs = linear(inputs)
 
     np.testing.assert_allclose(outputs.sum(), b * s * d * d + b * s * d)
@@ -24,7 +24,7 @@ def test_linear_no_bias():
     b, s, d = 32, 64, 128
 
     inputs = np.ones((b, s, d))
-    linear = Linear(d, d, use_bias=False, init_fn=lambda shape: np.ones(shape))
+    linear = Linear(d, d, use_bias=False, weight_init="ones")
     outputs = linear(inputs)
 
     np.testing.assert_allclose(outputs.sum(), b * s * d * d)
@@ -36,7 +36,7 @@ def test_row_linear():
     size, rank = npdist.world_size(), npdist.tensor_parallel_rank()
 
     inputs_scattered = np.ones((b, s, d // size))
-    row_linear = Linear(d, d, init_fn=lambda shape: np.ones(shape), weight_shard_axis=0)
+    row_linear = Linear(d, d, weight_init="ones", bias_init="ones", weight_shard_axis=0)
     row_linear.use_bias = rank == 0
     row_linear.scatter()
 
@@ -56,7 +56,8 @@ def test_column_linear():
     row_linear = Linear(
         d,
         d,
-        init_fn=lambda shape: np.ones(shape),
+        weight_init="ones",
+        bias_init="ones",
         weight_shard_axis=1,
         bias_shard_axis=0,
     )
@@ -79,9 +80,7 @@ def test_pytorch():
     inputs_torch = torch.from_numpy(inputs).reshape(b * s, d)
     inputs_torch.requires_grad = True
 
-    linear = Linear(
-        d, d, init_fn=lambda shape: (rng.normal(size=shape) + 1) / shape[-1]
-    )
+    linear = Linear(d, d, weight_init="init_for_testing", bias_init="ones", rng=rng)
     linear_torch = nn.Linear(d, d)
 
     linear_torch.weight = Parameter(torch.from_numpy(linear.weight.data.T))

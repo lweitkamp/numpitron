@@ -12,14 +12,22 @@ class MLP(Model):
         d_in: int,
         d_hidden: int,
         d_out: int,
+        **kwargs,
     ):
         super().__init__()
         self.add_layer(
             "column_linear",
-            Linear(d_in=d_in, d_out=d_hidden, weight_shard_axis=1, bias_shard_axis=0),
+            Linear(
+                d_in=d_in,
+                d_out=d_hidden,
+                weight_shard_axis=1,
+                bias_shard_axis=0,
+                **kwargs,
+            ),
         )
         self.add_layer(
-            "row_linear", Linear(d_in=d_hidden, d_out=d_out, weight_shard_axis=0)
+            "row_linear",
+            Linear(d_in=d_hidden, d_out=d_out, weight_shard_axis=0, **kwargs),
         )
         self.add_layer("relu", ReLU())
 

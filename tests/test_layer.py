@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 
-from numpitron.nn.layer import Layer
+from numpitron.nn.core import Layer
 from numpitron import distributed as npdist
 
 npdist.init(tp_size=npdist.world_size())

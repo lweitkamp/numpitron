@@ -1,14 +1,24 @@
 import numpy as np
 
 import numpitron.distributed as npdist
-from numpitron.nn.layer import Layer
+from numpitron.nn.core import Layer, weight_init_fn
 
 
 class InputEmbedding(Layer):
-    def __init__(self, d_model: int, vocab_size: int):
+    def __init__(
+        self,
+        d_model: int,
+        vocab_size: int,
+        weight_init: str = "scaled_normal",
+        **kwargs,
+    ):
         super().__init__()
         self.add_settings({"d_model": d_model, "vocab_size": vocab_size})
-        self.add_parameter("embedding", np.ones((d_model, vocab_size)), shard_axis=1)
+        self.add_parameter(
+            "embedding",
+            weight_init_fn(weight_init, **kwargs)((d_model, vocab_size)),
+            shard_axis=1,
+        )
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         chunk_start = npdist.tensor_parallel_rank() * self.embedding.data.shape[1]

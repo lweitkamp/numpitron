@@ -18,7 +18,7 @@ def test_input_output_embedding_pytorch():
     inputs = rng.integers(0, v, (b, s))
     inputs_torch = torch.from_numpy(inputs)
 
-    input_embedding = InputEmbedding(d, v)
+    input_embedding = InputEmbedding(d, v, weight_init="ones")
     output_embedding = OutputEmbedding(input_embedding)
     input_embedding_torch = nn.Embedding(v, d)
 
@@ -51,7 +51,7 @@ def test_tensor_parallel_input_output_embedding_pytorch():
     inputs = rng.integers(0, v, (b, s))
     inputs_torch = torch.from_numpy(inputs)
 
-    input_embedding = InputEmbedding(d, v)
+    input_embedding = InputEmbedding(d, v, weight_init="ones")
     output_embedding = OutputEmbedding(input_embedding)
     input_embedding_torch = nn.Embedding(v, d)
 

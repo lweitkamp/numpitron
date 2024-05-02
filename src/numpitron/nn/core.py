@@ -1,10 +1,45 @@
 from abc import abstractmethod
 from dataclasses import asdict, dataclass, replace
-from typing import Callable
 
 import numpy as np
+from numpy.random import Generator
 
 from numpitron import distributed as npdist
+
+
+def weight_init_fn(
+    name: str = "default", rng: Generator | None = None, scale: float = 1.0
+):
+    def zeros(shape: tuple[int, ...]):
+        return np.zeros(shape).astype(np.float32)
+
+    def ones(shape: tuple[int, ...]):
+        return np.ones(shape).astype(np.float32)
+
+    def in_projection(shape: tuple[int, int]):
+        assert rng is not None
+        in_, out_ = shape
+        weight = rng.random((in_, out_)) * 3 / (in_ * out_)
+        return weight.astype(np.float32)
+
+    def scaled_normal(shape: tuple[int, ...]):
+        assert rng is not None
+        weight = rng.random(shape) * scale
+        return weight.astype(np.float32)
+
+    def init_for_testing(shape: tuple[int, ...]):
+        assert rng is not None
+        weight = (rng.random(shape) + 1) / max(shape)
+        return weight.astype(np.float32)
+
+    options = {
+        "zeros": zeros,
+        "ones": ones,
+        "in_projection": in_projection,
+        "scaled_normal": scaled_normal,
+        "init_for_testing": init_for_testing,
+    }
+    return options[name]
 
 
 @dataclass(frozen=True)
@@ -32,23 +67,14 @@ class Layer:
         return self.forward(*args, **kwargs)
 
     def add_parameter(
-        self, name, init_fn: Callable | np.ndarray, shard_axis: int | None = None
+        self, name, data: np.ndarray, shard_axis: int | None = None
     ) -> None:
         """Add a parameter, any numpy array that also has a gradient."""
-        data = init_fn() if callable(init_fn) else init_fn
-
         if shard_axis is not None:
             assert shard_axis <= len(
                 data.shape
             ), f"Cannot shard {shard_axis} on {len(data.shape)} dims."
-
-        setattr(
-            self,
-            name,
-            Parameter(
-                data=data.astype(np.float32), gradient=None, shard_axis=shard_axis
-            ),
-        )
+        setattr(self, name, Parameter(data=data, gradient=None, shard_axis=shard_axis))
         self.parameters[name] = getattr(self, name)
 
     def add_setting(self, name, value):

@@ -1,14 +1,21 @@
 import numpy as np
 
-from numpitron.nn.layer import Layer
+from numpitron.nn.core import Layer, weight_init_fn
 
 
 class LayerNorm(Layer):
-    def __init__(self, d_model: int, eps: float = 1e-5):
+    def __init__(
+        self,
+        d_model: int,
+        eps: float = 1e-5,
+        weight_init: str = "ones",
+        bias_init: str = "zeros",
+        **kwargs,
+    ):
         super().__init__()
         self.add_settings({"d_model": d_model, "eps": eps})
-        self.add_parameter("weight", np.ones((d_model,)))
-        self.add_parameter("bias", np.ones((d_model,)))
+        self.add_parameter("weight", weight_init_fn(weight_init, **kwargs)((d_model,)))
+        self.add_parameter("bias", weight_init_fn(bias_init, **kwargs)((d_model,)))
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         mean = inputs.mean(axis=-1, keepdims=True)

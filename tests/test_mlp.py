@@ -10,29 +10,26 @@ from numpitron.nn import MLP
 npdist.init(tp_size=npdist.world_size())
 
 
-def test_mlp():
-    b, s, d = 32, 64, 128
-
-    inputs = np.ones((b, s, d))
-    mlp = MLP(d, d * 4, d)
-    outputs = mlp(inputs)
-
-
 @pytest.mark.skipif(npdist.world_size() != 2, reason="Requires MPI with two processes.")
 def test_tensor_parallel_mlp():
     b, s, d = 32, 64, 128
 
-    inputs = np.ones((b, s, d))
-    mlp = MLP(d, d * 4, d)
-    mlp_tp = MLP(d, d * 4, d)
+    rng = np.random.default_rng(42)
+
+    inputs = rng.random((b, s, d))
+    mlp = MLP(d, d * 4, d, rng=rng, weight_init="init_for_testing", bias_init="zeros")
+    mlp_tp = MLP(d, d * 4, d, rng=rng)
+    mlp_tp.column_linear.update_parameter("weight", data=mlp.column_linear.weight.data)
+    mlp_tp.column_linear.update_parameter("bias", data=mlp.column_linear.bias.data)
+    mlp_tp.row_linear.update_parameter("weight", data=mlp.row_linear.weight.data)
+    mlp_tp.row_linear.update_parameter("bias", data=mlp.row_linear.bias.data)
 
     mlp_tp.scatter()
 
     out = mlp(inputs)
     out_tp = mlp_tp(inputs)
 
-    if npdist.tensor_parallel_rank() == 0:
-        np.testing.assert_allclose(out, out_tp)
+    np.testing.assert_allclose(out, out_tp)
 
 
 def test_pytorch():
@@ -44,7 +41,7 @@ def test_pytorch():
     inputs_torch = torch.from_numpy(inputs).reshape(b * s, d)
     inputs_torch.requires_grad = True
 
-    mlp = MLP(d, d, d)
+    mlp = MLP(d, d, d, rng=rng)
     mlp_torch = nn.Sequential(
         nn.Linear(d, d * 4),
         nn.ReLU(),

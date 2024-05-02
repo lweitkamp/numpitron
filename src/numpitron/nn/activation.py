@@ -1,6 +1,6 @@
 import numpy as np
 
-from numpitron.nn.layer import Layer
+from numpitron.nn.core import Layer
 
 
 def softmax(inputs: np.ndarray, axis: int = -1) -> np.ndarray:

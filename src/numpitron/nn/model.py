@@ -1,6 +1,6 @@
 from typing import Self
 
-from numpitron.nn.layer import Layer
+from numpitron.nn.core import Layer
 
 
 class Model(Layer):
