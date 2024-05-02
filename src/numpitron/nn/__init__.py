@@ -6,3 +6,5 @@ from numpitron.nn.linear import Linear
 from numpitron.nn.loss import softmax_cross_entropy
 from numpitron.nn.mlp import MLP
 from numpitron.nn.normalization import LayerNorm
+from numpitron.nn.transformer_block import TransformerBlock
+from numpitron.nn.transformer import Transformer

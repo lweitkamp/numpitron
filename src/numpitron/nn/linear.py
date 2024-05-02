@@ -3,6 +3,7 @@ from numpitron.nn.core import Layer, weight_init_fn
 
 
 class Linear(Layer):
+
     def __init__(
         self,
         d_in: int,

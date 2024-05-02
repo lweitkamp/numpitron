@@ -98,7 +98,10 @@ class Layer:
     @classmethod
     def from_dict(cls, layer_dict: dict[str, dict]):
         settings, parameters = layer_dict["settings"], layer_dict["parameters"]
+        settings["weight_init"] = "zeros"
+        settings["bias_init"] = "zeros"
         layer = cls(**settings)
+
         for name, parameter in parameters.items():
             layer.add_parameter(name, parameter["data"], parameter["shard_axis"])
         return layer

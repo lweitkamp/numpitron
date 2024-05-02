@@ -15,6 +15,7 @@ class MLP(Model):
         **kwargs,
     ):
         super().__init__()
+        self.add_settings({"d_in": d_in, "d_hidden": d_hidden, "d_out": d_out})
         self.add_layer(
             "column_linear",
             Linear(

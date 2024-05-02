@@ -27,7 +27,7 @@ class Attention(Model):
         self.add_layer("out_projection", out_projection)
         self.add_layer("softmax", Softmax(axis=-1))
 
-        self.add_settings({"d_mdel": d_model, "n_heads": n_heads, "d_hidden": d_hidden})
+        self.add_settings({"d_model": d_model, "n_heads": n_heads, "d_hidden": d_hidden})
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         batch_size, seq_len, d_model = inputs.shape

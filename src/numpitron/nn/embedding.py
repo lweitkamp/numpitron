@@ -55,7 +55,7 @@ class InputEmbedding(Layer):
 
 
 class OutputEmbedding(Layer):
-    def __init__(self, input_embedding: Layer):
+    def __init__(self, input_embedding: Layer, **kwargs):
         super().__init__()
         self.input_embedding = input_embedding
 
@@ -79,7 +79,7 @@ class OutputEmbedding(Layer):
 
 
 class PositionalEncoding(Layer):
-    def __init__(self, d_model: int, seq_len: int):
+    def __init__(self, d_model: int, seq_len: int, **kwargs):
         super().__init__()
         self.add_settings({"d_model": d_model, "seq_len": seq_len})
         pos = np.expand_dims(np.arange(0, seq_len), -1)
