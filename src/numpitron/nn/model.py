@@ -35,7 +35,6 @@ class Model(Layer):
     @classmethod
     def from_dict(cls, model_dict: dict[str, dict]) -> Self:
         settings, layers = model_dict["settings"], model_dict["layers"]
-        settings |= {"weight_init": "zeros", "bias_init": "zeros"}
         model = cls(**settings)
 
         for name in model.layers:

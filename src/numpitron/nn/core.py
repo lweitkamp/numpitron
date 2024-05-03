@@ -101,7 +101,10 @@ class Layer:
     @classmethod
     def from_dict(cls, layer_dict: dict[str, dict]):
         settings, parameters = layer_dict["settings"], layer_dict["parameters"]
-        settings |= {"weight_init": "zeros", "bias_init": "zeros"}
+        if "weight_init" in settings:
+            settings["weight_init"] = "zeros"
+        if "bias_init" in settings:
+            settings["bias_init"] = "zeros"
         
         layer = cls(**settings, )
 
