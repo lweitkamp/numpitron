@@ -53,7 +53,7 @@ class Parameter:
 
 
 class Layer:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.ctx = {}  # Backward pass variables.
         self.parameters = {}  # Anything requiring a gradient.
         self.settings = {}  # Anything that is required for initializing itself.
@@ -101,12 +101,8 @@ class Layer:
     @classmethod
     def from_dict(cls, layer_dict: dict[str, dict]):
         settings, parameters = layer_dict["settings"], layer_dict["parameters"]
-        if "weight_init" in settings:
-            settings["weight_init"] = "zeros"
-        if "bias_init" in settings:
-            settings["bias_init"] = "zeros"
-        
-        layer = cls(**settings, )
+        settings |= {"weight_init": "zeros", "bias_init": "zeros"}
+        layer = cls(**settings)
 
         for name, parameter in parameters.items():
             layer.add_parameter(name, parameter["data"], parameter["shard_axis"])

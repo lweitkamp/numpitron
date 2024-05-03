@@ -13,7 +13,7 @@ npdist.init(tp_size=npdist.world_size())
 class DummyModel(Model):
     """Dummy model class with single linear layer for testing."""
 
-    def __init__(self, d_in, d_out):
+    def __init__(self, d_in, d_out, **kwargs):
         super().__init__()
         self.add_setting("d_in", d_in)
         self.add_setting("d_out", d_out)
