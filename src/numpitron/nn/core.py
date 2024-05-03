@@ -8,7 +8,10 @@ from numpitron import distributed as npdist
 
 
 def weight_init_fn(
-    name: str = "default", rng: Generator | None = None, scale: float = 1.0
+    name: str = "default",
+    rng: Generator | None = None,
+    scale: float = 1.0,
+    **kwargs,
 ):
     def zeros(shape: tuple[int, ...]):
         return np.zeros(shape).astype(np.float32)
@@ -98,9 +101,9 @@ class Layer:
     @classmethod
     def from_dict(cls, layer_dict: dict[str, dict]):
         settings, parameters = layer_dict["settings"], layer_dict["parameters"]
-        settings["weight_init"] = "zeros"
-        settings["bias_init"] = "zeros"
-        layer = cls(**settings)
+        settings |= {"weight_init": "zeros", "bias_init": "zeros"}
+        
+        layer = cls(**settings, )
 
         for name, parameter in parameters.items():
             layer.add_parameter(name, parameter["data"], parameter["shard_axis"])

@@ -11,7 +11,7 @@ def test_to_from_dict():
 
     rng = np.random.default_rng(42)
 
-    inputs = rng.integers(0, v, (b, s, d))
+    inputs = rng.integers(0, v, (b, s))
     transformer = Transformer(d, n, l, v, s, rng=rng)
     outputs = transformer(inputs)
 
