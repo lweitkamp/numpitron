@@ -94,9 +94,9 @@ class PositionalEncoding(Layer):
         encoding = np.zeros((seq_len, d_model), dtype=np.float32)
         encoding[:, 0::2] = np.sin(pos / (10000**_2i))
         encoding[:, 1::2] = np.cos(pos / (10000**_2i))
-        self.add_parameter("encoding", encoding)
+        self.encoding = encoding
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         _, seq_len, *_ = inputs.shape
-        inputs_encoding = self.encoding.data[:seq_len, :] + inputs
+        inputs_encoding = self.encoding[:seq_len, :] + inputs
         return inputs_encoding

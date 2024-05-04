@@ -16,6 +16,13 @@ class Model(Layer):
         setattr(self, name, layer)
         self.layers[name] = layer
 
+    def get_layers(self):
+        layers = {
+            layer_name: layer.get_layers() if isinstance(layer, Model) else layer
+            for layer_name, layer in self.layers.items()
+        }
+        return layers
+
     def scatter(self, src: int = 0) -> None:
         assert not self.is_scattered, "Cannot scatter an already scattered model."
         for layer in self.layers.values():

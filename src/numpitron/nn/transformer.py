@@ -54,7 +54,7 @@ class Transformer(Model):
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
         d_out = self.output_embedding.backward(d_out)
-        for layer in range(self.n_layers, -1, -1):
+        for layer in range(self.n_layers - 1, -1, -1):
             d_out = self.layers[f"block_{layer}"].backward(d_out)
         d_out = self.input_embedding.backward(d_out)
         return d_out
