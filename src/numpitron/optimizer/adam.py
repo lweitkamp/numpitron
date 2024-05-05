@@ -51,14 +51,14 @@ class Adam:
                     layer_parameter = layer.parameters[name]
 
                     np.copyto(
+                        optim_parameters["momentum"],
                         self.beta1 * optim_parameters["momentum"]
                         + (1 - self.beta1) * layer_parameter.gradient,
-                        optim_parameters["momentum"],
                     )
                     np.copyto(
+                        optim_parameters["velocity"],
                         self.beta2 * optim_parameters["velocity"]
                         + (1 - self.beta2) * np.power(layer_parameter.gradient, 2),
-                        optim_parameters["velocity"],
                     )
 
                     momentum = optim_parameters["momentum"] / (
@@ -70,7 +70,7 @@ class Adam:
                     update = (self.learning_rate * momentum) / (
                         np.sqrt(velocity) + self.eps
                     )
-                    layer.update_parameter(name, data=layer_parameter.data - update)
+                    layer.update_parameter(name, data=layer_parameter.data - update, gradient=None)
                     return
 
             for key in params:
