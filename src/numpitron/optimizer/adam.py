@@ -1,9 +1,8 @@
 from typing import Self
 import numpy as np
 
-from numpitron.nn import Transformer
 from numpitron.nn.model import Model
-from numpitron.nn.core import Parameter, Layer
+from numpitron.nn.core import Layer
 
 
 class Adam:

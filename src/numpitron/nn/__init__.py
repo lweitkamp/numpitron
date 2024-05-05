@@ -1,3 +1,4 @@
+# ruff: noqa: F401
 from numpitron.nn.activation import ReLU, Softmax, softmax
 from numpitron.nn.attention import Attention
 from numpitron.nn.embedding import (InputEmbedding, OutputEmbedding,
