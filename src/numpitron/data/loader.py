@@ -5,23 +5,6 @@ import numpy as np
 from numpy.random import Generator
 
 
-def get_dataloader(config: dict, rng: Generator):
-    """Create the train and validation data loaders."""
-    train_dataloader = DataLoader(
-        dataset_path=config["data_config"]["dataset_train_path"],
-        seq_len=config["model_config"]["seq_len"],
-        batch_size=config["data_config"]["batch_size"],
-        rng=rng,
-    )
-    validation_dataloader = DataLoader(
-        dataset_path=config["data_config"]["dataset_validation_path"],
-        seq_len=config["model_config"]["seq_len"],
-        batch_size=config["data_config"]["batch_size"],
-        rng=rng,
-    )
-    return train_dataloader, validation_dataloader
-
-
 class DataLoader:
     def __init__(
         self,

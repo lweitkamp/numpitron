@@ -1,3 +1,4 @@
+from typing import Self
 import numpy as np
 
 from numpitron.nn import Transformer
@@ -19,7 +20,7 @@ class Adam:
         self.beta1 = beta1
         self.beta2 = beta2
         self.eps = eps
-        self.timestep = 0
+        self.timestep = 1
         self.init()
 
     def init(self):
@@ -76,14 +77,20 @@ class Adam:
                 _step(layer[key], params[key])
 
         _step(self.layers, self.parameters)
+        
+    def to_dict(self):
+        state = {
+            "parameters": self.parameters,
+            "learning_rate": self.learning_rate,
+            "beta1": self.beta1,
+            "beta2": self.beta2,
+            "eps": self.eps,
+        }
+        return state
 
-
-if __name__ == "__main__":
-    rng = np.random.default_rng(42)
-    model = Transformer(32, 6, 3, 16, 8, rng=rng)
-    adam = Adam(model, 1e-4)
-
-    inputs = rng.integers(0, 16, (7, 8))
-    outputs = model(inputs)
-    model.backward(np.ones_like(outputs))
-    print(adam.step())
+    @classmethod
+    def from_dict(cls, state: dict, model: Model) -> Self:
+        parameters = state.pop("parameters")
+        optimizer = cls(model, **state)
+        optimizer.parameters = parameters
+        return optimizer
