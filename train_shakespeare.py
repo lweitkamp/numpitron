@@ -65,7 +65,7 @@ def train(arguments: argparse.Namespace):
     if arguments.model_save_path.exists():
         state = np.load(arguments.model_save_path, allow_pickle=True)[()]
         transformer = Transformer.from_dict(state["model_parameters"])
-        optimizer = Adam.from_dict(state["optimizer_parameters"])
+        optimizer = Adam.from_dict(state["optimizer_parameters"], transformer)
         start_epoch = state["epoch"]
         min_loss = state["validation_loss"]
 

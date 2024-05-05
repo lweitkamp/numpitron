@@ -81,6 +81,7 @@ class Adam:
     def to_dict(self):
         state = {
             "parameters": self.parameters,
+            "timestep": self.timestep,
             "learning_rate": self.learning_rate,
             "beta1": self.beta1,
             "beta2": self.beta2,
@@ -91,6 +92,8 @@ class Adam:
     @classmethod
     def from_dict(cls, state: dict, model: Model) -> Self:
         parameters = state.pop("parameters")
+        timestep = state.pop("timestep")
         optimizer = cls(model, **state)
         optimizer.parameters = parameters
+        optimizer.timestep = timestep
         return optimizer
