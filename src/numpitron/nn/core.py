@@ -117,9 +117,12 @@ class Layer:
 
             update = {}
 
-            new_shape = list(parameter.data.shape)
-            new_shape[parameter.shard_axis] //= npdist.tensor_parallel_size()
+            # New shape depends on the division of the tensor parallel size.
+            new_shape = np.array_split(
+                parameter.data, npdist.tensor_parallel_size(), axis=parameter.shard_axis
+            )[npdist.tensor_parallel_rank()].shape
             new_data = np.zeros(new_shape, dtype=parameter.data.dtype)
+
             npdist.scatter(
                 parameter.data,
                 new_data,

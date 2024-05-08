@@ -34,6 +34,7 @@ class Adam:
                         param_name: {
                             "velocity": np.zeros_like(param.data),
                             "momentum": np.zeros_like(param.data),
+                            "shard_axis": param.shard_axis,
                         }
                         for param_name, param in l.parameters.items()
                     }
@@ -76,7 +77,14 @@ class Adam:
                 _step(layer[key], params[key])
 
         _step(self.layers, self.parameters)
+
+    def scatter(self):
+        def _scatter(parameter):
+            if isinstance()
         
+        parameter in self.parameters:
+            
+
     def to_dict(self):
         state = {
             "parameters": self.parameters,

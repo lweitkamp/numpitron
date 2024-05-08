@@ -3,6 +3,10 @@ from pathlib import Path
 
 import numpy as np
 from numpy.random import Generator
+import tqdm
+
+
+from numpitron import distributed as npdist
 
 
 class DataLoader:
@@ -26,7 +30,7 @@ class DataLoader:
         self.rng = rng
 
         # Calculate how quickly we go through one epoch.
-        _data = np.memmap(self.dataset_path, dtype=np.uint16, mode='r')
+        _data = np.memmap(self.dataset_path, dtype=np.uint16, mode="r")
         self.batches_per_epoch = len(_data) // (seq_len * batch_size)
 
         self.batch_size = batch_size
@@ -35,18 +39,28 @@ class DataLoader:
 
     def iter_epoch(self):
         """Go through one iteration of the dataset.
-        
+
         Returns:
             An iterable dataset.
         """
-        batch_idx = 0
-        data = np.memmap(self.dataset_path, dtype=np.uint16, mode='r')
-        while batch_idx <= self.batches_per_epoch:
-            start_idx = self.rng.integers(
-                0, len(data) - 1 - self.seq_len, size=self.batch_size
-            )[:, None]
-            inputs = data[start_idx + self.seq_range]
-            labels = data[start_idx + 1 + self.seq_range]
-            yield inputs, labels
 
-            batch_idx += 1
+        def _iter_epoch():
+            batch_idx = 0
+            data = np.memmap(self.dataset_path, dtype=np.uint16, mode="r")
+            while batch_idx <= self.batches_per_epoch:
+                start_idx = self.rng.integers(
+                    0, len(data) - 1 - self.seq_len, size=self.batch_size
+                )[:, None]
+                inputs = data[start_idx + self.seq_range]
+                labels = data[start_idx + 1 + self.seq_range]
+                yield inputs, labels
+
+                batch_idx += 1
+
+        pbar = tqdm.tqdm(
+            _iter_epoch(),
+            leave=False,
+            total=self.batches_per_epoch,
+            disable=npdist.world_rank() != 0,
+        )
+        return pbar

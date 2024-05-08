@@ -13,6 +13,7 @@ def generate(arguments: argparse.Namespace):
     state = np.load(arguments.model_save_path, allow_pickle=True)[()]
     transformer = Transformer.from_dict(state["model_parameters"])
     tokenizer = Tokenizer.from_pretrained(arguments.tokenizer_path)
+    print(f"Loading model trained for {state['epoch']} epochs with val loss {state['validation_loss']}")
 
     rng = np.random.default_rng(arguments.seed)
 
