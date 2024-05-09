@@ -55,7 +55,6 @@ class Attention(Model):
         }
 
         if self.is_scattered and npdist.tensor_parallel_size() > 1:
-            print("HAHHAHA")
             npdist.all_reduce(outputs)
 
         return outputs

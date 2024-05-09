@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 
 from numpitron import distributed as npdist
@@ -33,7 +34,7 @@ def test_to_from_dict():
     np.testing.assert_allclose(outputs, outputs_from_dict)
 
 
-def test_from_savefile(tmp_path):
+def test_from_savefile(tmp_path: Path):
     b, s, d, n, l, v = 2, 16, 32, 4, 3, 32
 
     rng = np.random.default_rng(42)
