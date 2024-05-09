@@ -2,7 +2,43 @@ from typing import Self
 import numpy as np
 
 from numpitron.nn.model import Model
-from numpitron.nn.core import Layer
+from numpitron.nn.core import Layer, weight_init_fn
+
+
+class AdamParams(Layer):
+    def __init__(self, shape: tuple[int, ...], shard_axis: int | None = None, **kwargs):
+        super().__init__()
+        self.add_parameter("momentum", weight_init_fn("zeros")(shape), shard_axis)
+        self.add_parameter("velocity", weight_init_fn("zeros")(shape), shard_axis)
+
+
+def adam_update(
+    parameter: str,
+    layer: Layer,
+    adam_state: Layer,
+    learning_rate: float,
+    beta1: float,
+    beta2: float,
+    timestep: int,
+    eps: float,
+) -> None:
+    layer_parameter = layer.parameters[parameter]
+
+    adam_state.update_parameter(
+        "momentum",
+        data=beta1 * adam_state.momentum.data + (1 - beta1) * layer_parameter.gradient,
+    )
+
+    adam_state.update_parameter(
+        "velocity",
+        data=beta2 * adam_state.velocity.data
+        + (1 - beta2) * np.power(layer_parameter.gradient, 2),
+    )
+
+    momentum = adam_state.momentum.data / (1 - beta1**timestep)
+    velocity = adam_state.velocity.data / (1 - beta2**timestep)
+    update = (learning_rate * momentum) / (np.sqrt(velocity) + eps)
+    layer.update_parameter(parameter, data=layer_parameter.data - update, gradient=None)
 
 
 class Adam:
@@ -31,11 +67,7 @@ class Adam:
             for n, l in layer.items():
                 if isinstance(l, Layer):
                     params[n] = {
-                        param_name: {
-                            "velocity": np.zeros_like(param.data),
-                            "momentum": np.zeros_like(param.data),
-                            "shard_axis": param.shard_axis,
-                        }
+                        param_name: AdamParams(param.data.shape, param.shard_axis)
                         for param_name, param in l.parameters.items()
                     }
                 elif isinstance(l, dict):
@@ -44,50 +76,40 @@ class Adam:
 
         self.parameters = _init_params(self.layers)
 
-    def step(self):
-        def _step(layer, params):
-            if isinstance(layer, Layer):
-                for name, optim_parameters in params.items():
-                    layer_parameter = layer.parameters[name]
+    def step(self, layer, params):
+        if layer is None and params is None:
+            layer, params = self.layers, self.parameters
 
-                    np.copyto(
-                        optim_parameters["momentum"],
-                        self.beta1 * optim_parameters["momentum"]
-                        + (1 - self.beta1) * layer_parameter.gradient,
-                    )
-                    np.copyto(
-                        optim_parameters["velocity"],
-                        self.beta2 * optim_parameters["velocity"]
-                        + (1 - self.beta2) * np.power(layer_parameter.gradient, 2),
-                    )
-
-                    momentum = optim_parameters["momentum"] / (
-                        1 - self.beta1**self.timestep
-                    )
-                    velocity = optim_parameters["velocity"] / (
-                        1 - self.beta2**self.timestep
-                    )
-                    update = (self.learning_rate * momentum) / (
-                        np.sqrt(velocity) + self.eps
-                    )
-                    layer.update_parameter(name, data=layer_parameter.data - update, gradient=None)
-                    return
-
-            for key in params:
-                _step(layer[key], params[key])
-
-        _step(self.layers, self.parameters)
-
-    def scatter(self):
-        def _scatter(parameter):
-            if isinstance()
-        
-        parameter in self.parameters:
-            
+        if isinstance(layer, Layer):
+            for name, optim_parameters in params.items():
+                adam_update(
+                    name,
+                    layer,
+                    optim_parameters,
+                    self.learning_rate,
+                    self.beta1,
+                    self.beta2,
+                    self.timestep,
+                    self.eps,
+                )
+            return
+        for key in params:
+            self.step(layer[key], params[key])
 
     def to_dict(self):
+        def _to_dict(params) -> dict:
+            out = {}
+            for key, value in params.items():
+                if isinstance(value, dict):
+                    out[key] = _to_dict(value)
+                elif isinstance(value, Layer):
+                    out[key] = value.to_dict()
+                else:
+                    print(key, value)
+            return out
+
         state = {
-            "parameters": self.parameters,
+            "parameters": _to_dict(self.parameters),
             "timestep": self.timestep,
             "learning_rate": self.learning_rate,
             "beta1": self.beta1,
@@ -101,6 +123,23 @@ class Adam:
         parameters = state.pop("parameters")
         timestep = state.pop("timestep")
         optimizer = cls(model, **state)
-        optimizer.parameters = parameters
+
+        # Fix parameters.
+        def recursive(something):
+            out = {}
+            for key, value in something.items():
+                if "settings" in value and "parameters" in value:
+                    momentum = value["parameters"]["momentum"]
+                    velocity = value["parameters"]["velocity"]
+                    out[key] = AdamParams(
+                        momentum["data"].shape, momentum["shard_axis"]
+                    )
+                    out[key].update_parameter("momentum", data=momentum["data"])
+                    out[key].update_parameter("velocity", data=velocity["data"])
+                else:
+                    out[key] = recursive(value)
+            return out
+
+        optimizer.parameters = recursive(parameters)
         optimizer.timestep = timestep
         return optimizer
