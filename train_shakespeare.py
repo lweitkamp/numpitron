@@ -26,8 +26,21 @@ def validation_step(transformer: Transformer, x: np.ndarray, y: np.ndarray) -> f
     return loss.mean()
 
 
-def train(arguments: argparse.Namespace):
+def checkpoint(model, optimizer, epoch, loss, save_path):
+    model.all_gather()
+    optimizer.all_gather()
+    state = {
+        "model_parameters": model.to_dict(),
+        "optimizer_parameters": optimizer.to_dict(),
+        "epoch": epoch,
+        "validation_loss": loss,
+    }
+    np.save(save_path, state, allow_pickle=True)
+    model.scatter()
+    optimizer.scatter()
 
+
+def train(arguments: argparse.Namespace):
     npdist.init(tp_size=arguments.tensor_parallel_size)
     rank = npdist.world_rank()
 
@@ -51,7 +64,8 @@ def train(arguments: argparse.Namespace):
         beta2=arguments.beta2,
     )
 
-    train_dataloader = DataLoader(arguments.train_dataset_path,
+    train_dataloader = DataLoader(
+        arguments.train_dataset_path,
         arguments.sequence_length,
         arguments.batch_size,
         rng,
@@ -74,8 +88,17 @@ def train(arguments: argparse.Namespace):
         min_loss = state["validation_loss"]
 
     transformer.scatter()
+    optimizer.scatter()
 
-    for epoch in tqdm(range(start_epoch, arguments.n_epochs), disable=rank!=0):
+    for epoch in tqdm(range(start_epoch, arguments.n_epochs), disable=rank != 0):
+        checkpoint(
+                transformer,
+                optimizer,
+                epoch,
+                1e-4,
+                arguments.model_save_path,
+            )
+    
         ### Training Step ###
         train_bar = train_dataloader.iter_epoch()
         for x, y in train_bar:
@@ -89,15 +112,15 @@ def train(arguments: argparse.Namespace):
             validation_loss = validation_step(transformer, x, y)
 
         ### Save State ###
-        # if validation_loss < min_loss:
-        #     min_loss = validation_loss
-        #     state = {
-        #         "model_parameters": transformer.to_dict(),
-        #         "optimizer_parameters": optimizer.to_dict(),
-        #         "epoch": epoch,
-        #         "validation_loss": validation_loss,
-        #     }
-        #     np.save(arguments.model_save_path, state, allow_pickle=True)
+        if validation_loss < min_loss:
+            min_loss = validation_loss
+            checkpoint(
+                transformer,
+                optimizer,
+                epoch,
+                validation_loss,
+                arguments.model_save_path,
+            )
 
 
 parser = argparse.ArgumentParser("Transformer model Trainer")

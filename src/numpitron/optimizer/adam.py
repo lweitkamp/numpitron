@@ -24,6 +24,10 @@ def adam_update(
 ) -> None:
     layer_parameter = layer.parameters[parameter]
 
+    # Possible footgun
+    if layer_parameter.gradient is None:
+        return
+
     adam_state.update_parameter(
         "momentum",
         data=beta1 * adam_state.momentum.data + (1 - beta1) * layer_parameter.gradient,
@@ -76,7 +80,7 @@ class Adam:
 
         self.parameters = _init_params(self.layers)
 
-    def step(self, layer, params):
+    def step(self, layer=None, params=None):
         if layer is None and params is None:
             layer, params = self.layers, self.parameters
 
@@ -96,6 +100,24 @@ class Adam:
         for key in params:
             self.step(layer[key], params[key])
 
+    def scatter(self, params: dict = None):
+        if params is None:
+            params = self.parameters
+        for key, value in params.items():
+            if isinstance(value, AdamParams):
+                value.scatter()
+            else:
+                self.scatter(value)
+
+    def all_gather(self, params: dict = None):
+        if params is None:
+            params = self.parameters
+        for key, value in params.items():
+            if isinstance(value, AdamParams):
+                value.all_gather()
+            else:
+                self.all_gather(params=value)
+
     def to_dict(self):
         def _to_dict(params) -> dict:
             out = {}
@@ -104,8 +126,6 @@ class Adam:
                     out[key] = _to_dict(value)
                 elif isinstance(value, Layer):
                     out[key] = value.to_dict()
-                else:
-                    print(key, value)
             return out
 
         state = {
