@@ -49,7 +49,6 @@ class Linear(Layer):
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
         inputs = self.ctx.pop("inputs")
-
         self.update_parameter(
             "weight", gradient=np.einsum("bsd, bsh -> dh", inputs, d_out)
         )

@@ -8,12 +8,12 @@ This library is meant as a learning experience for implementing distributed trai
 Core functionality will be 3D parallel and ZeRO stage 1 since these can be combined in general:
 
 * [x] Single Core 
-* [ ] Tensor Parallel 
+* [x] Tensor Parallel 
 * [ ] Distributed Data Parallel 
 * [ ] Pipeline Parallel
 * [ ] ZeRO
 
-When/if this is done, we can look at sequence parallel strategies.
+When/if this is done, we will look at expert parallel strategies.
 
 
 # Installation
@@ -34,12 +34,10 @@ First, download the shakespare dataset (`shakespeare_char_{train|val}.bin`) from
 
 You can run a sample character level training run on the shakespeare corpus using:
 ```bash
-python train.py \
-    --config-path examples/shakespeare_transformer.json \
-    --save-path examples
+mpirun -n 2 python train_shakespeare.py --tensor-parallel-size 2
 ```
 
-This will save the parameters and optimizer state at `examples/shakespeare_Transformer.npy` to be used for sampling.
+This will save the parameters and optimizer state at `examples/model.npy` to be used for sampling.
 
 Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80[^1].
 I would not recommend training from scratch but to download the state `shakespeare_Transformer.npy` from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) to the `examples` folder.

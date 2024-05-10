@@ -25,7 +25,9 @@ class Softmax(Layer):
         outputs = self.ctx.pop("outputs")
         _, _, seq_len, _ = outputs.shape
 
-        left = np.einsum("...ij, jk -> ...ijk", outputs, np.eye(seq_len))
+        left = np.einsum(
+            "...ij, jk -> ...ijk", outputs, np.eye(seq_len, dtype=d_out.dtype)
+        )
         right = np.einsum("...ij, ...ik -> ...ijk", outputs, outputs)
         d_out = (d_out[..., None, :] @ (left - right)).reshape(outputs.shape)
         return d_out
