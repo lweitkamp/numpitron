@@ -155,7 +155,11 @@ class Layer:
             update = {}
 
             new_shape = list(parameter.data.shape)
-            new_shape[parameter.shard_axis] *= npdist.tensor_parallel_size()
+            shard_dim =  np.array(new_shape[parameter.shard_axis])
+            new_shape[parameter.shard_axis] = npdist.all_reduce(
+               shard_dim, group=npdist.tensor_parallel_group()
+            )
+            new_shape[parameter.shard_axis] = int(shard_dim)
 
             new_data = np.zeros(new_shape, dtype=parameter.data.dtype)
             npdist.all_gather(

@@ -81,7 +81,6 @@ class OutputEmbedding(Layer):
 
     @classmethod
     def from_dict(cls, layer_dict: dict[str, dict]) -> Self:
-        print("OutputEmbedding: Do not forget to tie the input embedding here.")
         return cls(None)
 
 

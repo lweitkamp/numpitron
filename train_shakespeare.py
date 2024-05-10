@@ -91,14 +91,6 @@ def train(arguments: argparse.Namespace):
     optimizer.scatter()
 
     for epoch in tqdm(range(start_epoch, arguments.n_epochs), disable=rank != 0):
-        checkpoint(
-                transformer,
-                optimizer,
-                epoch,
-                1e-4,
-                arguments.model_save_path,
-            )
-    
         ### Training Step ###
         train_bar = train_dataloader.iter_epoch()
         for x, y in train_bar:

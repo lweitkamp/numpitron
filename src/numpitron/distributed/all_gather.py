@@ -21,14 +21,24 @@ def all_gather(
         axis (int): The axis on which the tensor needs to be concatenated.
         group (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
+    # In order to deal with possible non-uniform splits, we need to pass
+    # the shapes and displacements to the allgatherv function.
+    gather_list = np.array_split(destination_tensor, group.Get_size(), axis=axis)
+    gather_shapes = [x.shape for x in gather_list]
+    shapes = [np.array(np.prod(x.shape)) for x in gather_list]
+    displ = [sum(shapes[:p]) for p in range(len(shapes))]
+
     receiving_buffer = np.empty(
         np.prod(destination_tensor.shape), dtype=source_tensor.dtype
     )
-    group.Allgather(source_tensor, receiving_buffer)
+    group.Allgatherv(source_tensor, [receiving_buffer, shapes, displ, MPI.FLOAT])
 
-    receiving_buffer = np.split(receiving_buffer, group.Get_size(), 0)
+    # Now to ensure everything is back in the correct place.
     receiving_buffer = np.concatenate(
-        [x.reshape(source_tensor.shape) for x in receiving_buffer],
+        [
+            x.reshape(shape)
+            for x, shape in zip(np.split(receiving_buffer, displ[1:]), gather_shapes)
+        ],
         axis=axis,
     )
     np.copyto(destination_tensor, receiving_buffer)
