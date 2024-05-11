@@ -95,14 +95,6 @@ def train(arguments: argparse.Namespace):
         ### Training Step ###
         train_bar = train_dataloader.iter_epoch()
         for x, y in train_bar:
-            checkpoint(
-                transformer,
-                optimizer,
-                epoch,
-                0,
-                arguments.model_save_path,
-            )
-
             train_loss = train_step(transformer, optimizer, x, y)
             train_bar.set_description(f"Train (loss: {train_loss:.3f})")
             train_bar.refresh()
@@ -112,16 +104,15 @@ def train(arguments: argparse.Namespace):
         for x, y in validation_bar:
             validation_loss = validation_step(transformer, x, y)
 
+        # TODO: all-reduce the val loss and store based on that.
         ### Save State ###
-        if validation_loss < min_loss:
-            min_loss = validation_loss
-            checkpoint(
-                transformer,
-                optimizer,
-                epoch,
-                validation_loss,
-                arguments.model_save_path,
-            )
+        checkpoint(
+            transformer,
+            optimizer,
+            epoch,
+            validation_loss,
+            arguments.model_save_path,
+        )
 
 
 parser = argparse.ArgumentParser("Transformer model Trainer")
