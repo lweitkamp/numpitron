@@ -8,13 +8,15 @@ class LayerNorm(Layer):
         self,
         d_model: int,
         eps: float = 1e-5,
-        weight_init: str = "ones",
+        weight_init: str = "scaled_normal",
         bias_init: str = "zeros",
         **kwargs,
     ):
         super().__init__()
+
+        scale = kwargs.pop("scale", 0.2)
         self.add_settings({"d_model": d_model, "eps": eps})
-        self.add_parameter("weight", weight_init_fn(weight_init, **kwargs)((d_model,)))
+        self.add_parameter("weight", weight_init_fn(weight_init, **kwargs, scale=scale)((d_model,)))
         self.add_parameter("bias", weight_init_fn(bias_init, **kwargs)((d_model,)))
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:

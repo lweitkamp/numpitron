@@ -1,13 +1,14 @@
 import argparse
 from pathlib import Path
-import numpy as np
 
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
-from numpitron.optimizer import Adam
 from numpitron import distributed as npdist
+from numpitron.data import DataLoader, Tokenizer
 from numpitron.nn import Transformer, softmax_cross_entropy
-from numpitron.data import Tokenizer, DataLoader
+from numpitron.optimizer import Adam
 
 
 def train_step(
@@ -79,6 +80,7 @@ def train(arguments: argparse.Namespace):
 
     start_epoch = 0
     min_loss = float("inf")
+    losses = pd.DataFrame(columns=["validation_loss", "train_loss"])
 
     if arguments.model_save_path.exists():
         state = np.load(arguments.model_save_path, allow_pickle=True)[()]
@@ -86,33 +88,43 @@ def train(arguments: argparse.Namespace):
         optimizer = Adam.from_dict(state["optimizer_parameters"], transformer)
         start_epoch = state["epoch"]
         min_loss = state["validation_loss"]
+        losses = pd.read_csv(arguments.model_save_path.parent / "loss.csv")
 
     transformer.scatter()
     optimizer.scatter()
 
     for epoch in tqdm(range(start_epoch, arguments.n_epochs), disable=rank != 0):
-
         ### Training Step ###
+        train_loss = []
         train_bar = train_dataloader.iter_epoch()
         for x, y in train_bar:
-            train_loss = train_step(transformer, optimizer, x, y)
-            train_bar.set_description(f"Train (loss: {train_loss:.3f})")
+            train_loss.append(train_step(transformer, optimizer, x, y))
+            train_bar.set_description(f"Train (loss: {train_loss[-1]:.3f})")
             train_bar.refresh()
+        train_loss = np.mean(train_loss)
 
         ### Validation Step ###
-        validation_bar = validation_dataloader.iter_epoch()
-        for x, y in validation_bar:
-            validation_loss = validation_step(transformer, x, y)
+        validation_loss = []
+        for x, y in validation_dataloader.iter_epoch():
+            validation_loss.append(validation_step(transformer, x, y))
+        validation_loss = np.mean(validation_loss)
 
-        # TODO: all-reduce the val loss and store based on that.
         ### Save State ###
-        checkpoint(
-            transformer,
-            optimizer,
-            epoch,
-            validation_loss,
-            arguments.model_save_path,
+        if validation_loss < min_loss:
+            min_loss = validation_loss
+            checkpoint(
+                transformer,
+                optimizer,
+                epoch,
+                validation_loss,
+                arguments.model_save_path,
+            )
+
+        epoch_stats = pd.DataFrame(
+            [{"validation_loss": validation_loss, "train_loss": train_loss}]
         )
+        losses = pd.concat([losses, epoch_stats])
+        losses.to_csv(arguments.model_save_path.parent / "loss.csv", index=False)
 
 
 parser = argparse.ArgumentParser("Transformer model Trainer")
@@ -120,7 +132,7 @@ parser = argparse.ArgumentParser("Transformer model Trainer")
 # Transformer related.
 parser.add_argument("--d-model", type=int, default=128)
 parser.add_argument("--sequence-length", type=int, default=64)
-parser.add_argument("--n-heads", type=int, default=8)
+parser.add_argument("--n-heads", type=int, default=4)
 parser.add_argument("--n-layers", type=int, default=4)
 
 # Data related

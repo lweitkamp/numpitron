@@ -62,7 +62,7 @@ class Transformer(Model):
     @classmethod
     def from_dict(cls, model_dict: dict[str, dict]) -> Self:
         transformer = super().from_dict(model_dict)
-        
+
         # Tie embeddings.
         transformer.output_embedding.input_embedding = transformer.input_embedding
         return transformer

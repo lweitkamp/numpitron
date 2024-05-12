@@ -16,7 +16,8 @@ classifiers = [
 
 dependencies = [
     "numpy==1.26.3",
-    "tqdm==4.66.2"
+    "tqdm==4.66.2",
+    "pandas==2.2.2"
 ]
 [project.optional-dependencies]
 dev = [

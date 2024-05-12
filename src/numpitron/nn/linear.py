@@ -12,7 +12,7 @@ class Linear(Layer):
         weight_shard_axis: int | None = None,
         bias_shard_axis: int | None = None,
         weight_init: str = "scaled_normal",
-        bias_init: str = "scaled_normal",
+        bias_init: str = "zeros",
         **kwargs,
     ):
         super().__init__()
@@ -28,9 +28,11 @@ class Linear(Layer):
             }
         )
 
+        scale = kwargs.pop("scale", 0.02)
+
         self.add_parameter(
             "weight",
-            weight_init_fn(weight_init, **kwargs)((d_in, d_out)),
+            weight_init_fn(weight_init, **kwargs, scale=scale)((d_in, d_out)),
             weight_shard_axis,
         )
         if self.use_bias:
