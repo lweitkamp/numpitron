@@ -10,8 +10,6 @@ def softmax(inputs: np.ndarray, axis: int = -1) -> np.ndarray:
 
 
 class Softmax(Layer):
-    """Softmax layer. Has no associated weights."""
-
     def __init__(self, axis: int = -1, **kwargs):
         super().__init__()
         self.add_setting("axis", axis)
@@ -34,8 +32,6 @@ class Softmax(Layer):
 
 
 class ReLU(Layer):
-    """ReLU non-linear activation function. Has no associated weights."""
-
     def __init__(self, **kwargs):
         super().__init__()
 

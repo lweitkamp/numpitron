@@ -4,9 +4,6 @@ from numpitron.nn.core import Layer
 
 
 class Model(Layer):
-    """Simple wrapper around a block of layers, mainly to ensure
-    that scatter and all_gather works as intended."""
-
     def __init__(self) -> None:
         super().__init__()
         self.layers = {}

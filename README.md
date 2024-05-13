@@ -17,30 +17,25 @@ When/if this is done, we will look at expert parallel strategies.
 
 
 # Installation
+First, ensure `mpi4py` is installed by following the instructions on the [MPI for Python](https://mpi4py.readthedocs.io) page.
+
+Then, install the library using:
+
 ```bash
 git clone https://github.com/lweitkamp/numpitron
 cd numpitron
-pip install -e .
-```
-
-If you want to additionally run the unit tests:
-```bash
-pip install -e .[dev]
-pytest tests
+pip install -e .  # -e .[dev] for unit tests
 ```
 
 # Examples
-First, download the shakespare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `examples` folder.
+You will need to download the shakespeare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `examples` folder.
 
-You can run a sample character level training run on the shakespeare corpus using:
+Training with tensor parallelism can be done using the `train_shakespeare.py` script:
 ```bash
 mpirun -n 2 python train_shakespeare.py --tensor-parallel-size 2
 ```
 
-This will save the parameters and optimizer state at `examples/model.npy` to be used for sampling.
-
-Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80[^1].
-I would not recommend training from scratch but to download the state `shakespeare_Transformer.npy` from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) to the `examples` folder.
+This will also save the parameters and optimizer state at `examples/model.npy` to be used for sampling. Training can take up to two days for 100 epochs but you can get a pretty good model at ~1.80[^1] validation loss within 5 hours or so, depending on your hardware (I'm using a 2015 macbook pro).
 
 Run a sample generation using:
 ```bash
