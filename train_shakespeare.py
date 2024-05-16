@@ -121,17 +121,14 @@ def train(arguments: argparse.Namespace):
                 arguments.model_save_path,
             )
 
-        epoch_stats = pd.DataFrame(
-            [
-                {
-                    "validation_loss": validation_loss,
-                    "train_loss": train_loss,
-                    "time": pbar.format_interval(pbar.format_dict["elapsed"]),
-                }
-            ]
-        )
-        losses = pd.concat([losses, epoch_stats])
-        losses.to_csv(arguments.model_save_path.parent / "loss.csv", index=False)
+        if rank == 0:
+            epoch_data = {
+                "validation_loss": validation_loss,
+                "train_loss": train_loss,
+                "time": pbar.format_interval(pbar.format_dict["elapsed"]),
+            }
+            losses = pd.concat([losses, pd.DataFrame(epoch_data)])
+            losses.to_csv(arguments.model_save_path.parent / "loss.csv", index=False)
 
 
 parser = argparse.ArgumentParser("Transformer model Trainer")
