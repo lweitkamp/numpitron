@@ -80,7 +80,7 @@ def train(arguments: argparse.Namespace):
 
     start_epoch = 0
     min_loss = float("inf")
-    losses = pd.DataFrame(columns=["validation_loss", "train_loss"])
+    losses = pd.DataFrame(columns=["validation_loss", "train_loss", "time"])
 
     if arguments.model_save_path.exists():
         state = np.load(arguments.model_save_path, allow_pickle=True)[()]
@@ -93,7 +93,8 @@ def train(arguments: argparse.Namespace):
     transformer.scatter()
     optimizer.scatter()
 
-    for epoch in tqdm(range(start_epoch, arguments.n_epochs), disable=rank != 0):
+    pbar = tqdm(range(start_epoch, arguments.n_epochs), disable=rank != 0)
+    for epoch in pbar:
         ### Training Step ###
         train_loss = []
         train_bar = train_dataloader.iter_epoch()
@@ -121,7 +122,13 @@ def train(arguments: argparse.Namespace):
             )
 
         epoch_stats = pd.DataFrame(
-            [{"validation_loss": validation_loss, "train_loss": train_loss}]
+            [
+                {
+                    "validation_loss": validation_loss,
+                    "train_loss": train_loss,
+                    "time": pbar.format_interval(pbar.format_dict["elapsed"]),
+                }
+            ]
         )
         losses = pd.concat([losses, epoch_stats])
         losses.to_csv(arguments.model_save_path.parent / "loss.csv", index=False)
