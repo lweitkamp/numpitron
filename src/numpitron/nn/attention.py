@@ -55,7 +55,7 @@ class Attention(Model):
         }
 
         if self.is_scattered and npdist.tensor_parallel_size() > 1:
-            npdist.all_reduce(outputs)
+            npdist.all_reduce(outputs, group=npdist.tensor_parallel_group())
 
         return outputs
 
@@ -88,6 +88,6 @@ class Attention(Model):
         d_out = self.qkv_projection.backward(d_out)
 
         if self.is_scattered and npdist.tensor_parallel_size() > 1:
-            npdist.all_reduce(d_out)
+            npdist.all_reduce(d_out, group=npdist.tensor_parallel_group())
 
         return d_out
