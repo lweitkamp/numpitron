@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import pytest
 import torch
@@ -8,28 +9,6 @@ from numpitron import distributed as npdist
 from numpitron.nn import MLP
 
 npdist.init(tp_size=npdist.world_size())
-
-
-@pytest.mark.skipif(npdist.world_size() != 2, reason="Requires MPI with two processes.")
-def test_tensor_parallel_mlp():
-    b, s, d = 32, 64, 128
-
-    rng = np.random.default_rng(42)
-
-    inputs = rng.random((b, s, d))
-    mlp = MLP(d, d * 4, d, rng=rng, weight_init="init_for_testing", bias_init="zeros")
-    mlp_tp = MLP(d, d * 4, d, rng=rng)
-    mlp_tp.column_linear.update_parameter("weight", data=mlp.column_linear.weight.data)
-    mlp_tp.column_linear.update_parameter("bias", data=mlp.column_linear.bias.data)
-    mlp_tp.row_linear.update_parameter("weight", data=mlp.row_linear.weight.data)
-    mlp_tp.row_linear.update_parameter("bias", data=mlp.row_linear.bias.data)
-
-    mlp_tp.scatter()
-
-    out = mlp(inputs)
-    out_tp = mlp_tp(inputs)
-
-    np.testing.assert_allclose(out, out_tp)
 
 
 def test_pytorch():
@@ -86,3 +65,25 @@ def test_pytorch():
         atol=1e-6,
         rtol=1e-2,
     )
+
+
+@pytest.mark.skipif(npdist.world_size() != 2, reason="Requires MPI with two processes.")
+def test_tensor_parallel():
+    b, s, d = 32, 64, 128
+
+    rng = np.random.default_rng(42)
+
+    inputs = rng.random((b, s, d), dtype=np.float32)
+    mlp = MLP(d, d * 4, d, rng=rng)
+    mlp_tp = deepcopy(mlp)
+
+    mlp_tp.scatter()
+
+    out = mlp(inputs)
+    out_tp = mlp_tp(inputs)
+
+    d_out = mlp.backward(np.ones_like(out))
+    d_out_tp = mlp_tp.backward(np.ones_like(out_tp))
+
+    np.testing.assert_allclose(out, out_tp, rtol=1e-5)
+    np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-5)

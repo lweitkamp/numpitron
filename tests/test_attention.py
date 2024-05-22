@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import pytest
 import torch
@@ -11,26 +12,14 @@ npdist.init(tp_size=npdist.world_size())
 
 
 @pytest.mark.skipif(npdist.world_size() != 2, reason="Requires MPI with two processes.")
-def test_tensor_parallel_attention():
+def test_tensor_parallel():
     b, s, d, n = 16, 32, 64, 8
 
     rng = np.random.default_rng(42)
 
-    inputs = (rng.random((b, s, d)).astype(np.float32) + 1) / d
-    attention = Attention(
-        d, n, d // n, weight_init="scaled_normal", scale=1 / (b * s * d), rng=rng
-    )
-    attention_tp = Attention(
-        d, n, d // n, weight_init="scaled_normal", scale=1 / (b * s * d), rng=rng
-    )
-
-    attention_tp.qkv_projection.update_parameter(
-        "weight", data=attention.qkv_projection.weight.data
-    )
-    attention_tp.out_projection.update_parameter(
-        "weight", data=attention.out_projection.weight.data
-    )
-
+    inputs = rng.random((b, s, d)).astype(np.float32)
+    attention = Attention(d, n, d // n, rng=rng)
+    attention_tp = deepcopy(attention)
     attention_tp.scatter()
 
     out = attention(inputs)
@@ -39,18 +28,8 @@ def test_tensor_parallel_attention():
     d_out = attention.backward(np.ones_like(out))
     d_out_tp = attention_tp.backward(np.ones_like(out_tp))
 
-    np.testing.assert_allclose(
-        out,
-        out_tp,
-        atol=1e-6,
-        rtol=1e-6,
-    )
-    np.testing.assert_allclose(
-        d_out,
-        d_out_tp,
-        atol=1e-6,
-        rtol=1e-6,
-    )
+    np.testing.assert_allclose(out, out_tp, rtol=1e-6)
+    np.testing.assert_allclose(d_out, d_out_tp, rtol=1e-6)
 
 
 def test_pytorch():
