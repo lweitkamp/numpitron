@@ -19,7 +19,7 @@ def test_layernorm_pytorch():
     inputs_torch = torch.from_numpy(inputs).reshape(b * s, d)
     inputs_torch.requires_grad = True
 
-    layer_norm = LayerNorm(d, eps=1e-5)
+    layer_norm = LayerNorm(d, eps=1e-5, rng=rng)
     layer_norm_torch = nn.LayerNorm(d, eps=1e-5)
 
     layer_norm_torch.weight = Parameter(torch.from_numpy(layer_norm.weight.data))

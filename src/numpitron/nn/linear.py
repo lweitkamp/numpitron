@@ -28,7 +28,7 @@ class Linear(Layer):
             }
         )
 
-        scale = kwargs.pop("scale", 0.02)
+        scale = kwargs.pop("scale", 0.006)
 
         self.add_parameter(
             "weight",

@@ -16,8 +16,8 @@ def test_all_gather(
     batch_size: int,
     seq_len: int,
 ) -> None:
-    source_tensor = np.zeros((batch_size, seq_len, 1)) + RANK
-    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
+    source_tensor = np.zeros((batch_size, seq_len, 1), dtype=np.float32) + RANK
+    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE), dtype=np.float32)
 
     npdist.all_gather(source_tensor, destination_tensor, axis=-1)
 
@@ -126,7 +126,7 @@ def test_scatter(
 
     npdist.scatter(source_tensor, destination_tensor, axis=-1)
 
-    np.testing.assert_equal(destination_tensor.sum(), batch_size * seq_len)
+    np.testing.assert_equal(destination_tensor.sum(), batch_size * seq_len // WORLD_SIZE)
 
 
 @pytest.mark.parametrize(

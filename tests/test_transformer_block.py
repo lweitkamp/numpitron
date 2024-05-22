@@ -1,5 +1,9 @@
-import numpy as np
+from copy import deepcopy
 
+import numpy as np
+import pytest
+
+from numpitron import distributed as npdist
 from numpitron.nn import TransformerBlock
 
 
@@ -35,3 +39,21 @@ def test_from_savefile(tmp_path):
     outputs_from_dict = transformer_block_from_dict(inputs)
 
     np.testing.assert_allclose(outputs, outputs_from_dict)
+
+
+@pytest.mark.skipif(npdist.world_size() != 2, reason="Requires MPI with two processes.")
+def test_tensor_parallel():
+    b, s, d, n = 2, 16, 32, 4
+
+    rng = np.random.default_rng(42)
+
+    inputs = rng.random((b, s, d)).astype(np.float32)
+    transformer_block = TransformerBlock(d, n, rng=rng)
+    single = deepcopy(transformer_block)
+
+    transformer_block.scatter()
+
+    outputs = transformer_block(inputs)
+    outputs_single = single(inputs)
+
+    np.testing.assert_allclose(outputs, outputs_single)

@@ -28,12 +28,15 @@ class InputEmbedding(Layer):
         mask = np.logical_or(inputs < chunk_start, inputs >= chunk_end)
 
         # Set tokens to chunk range, mask tokens outside range.
-        inputs = inputs - chunk_start
-        inputs[mask] = 0
+        if self.is_scattered:
+            inputs = inputs - chunk_start
+            inputs[mask] = 0
 
         # Take the correct embeddings and mask outside range.
         inputs_embedding = np.take(self.embedding.data.T, inputs, axis=0)
-        inputs_embedding[mask, :] = 0.0
+
+        if self.is_scattered:
+            inputs_embedding[mask, :] = 0.0
 
         if self.is_scattered and npdist.tensor_parallel_size() > 1:
             npdist.all_reduce(inputs_embedding, group=npdist.tensor_parallel_group())
@@ -51,7 +54,11 @@ class InputEmbedding(Layer):
         )
         inputs = self.ctx.pop("inputs")
         mask = self.ctx.pop("mask")
-        np.add.at(gradient.T, inputs[~mask], d_out[~mask])
+        if self.is_scattered:
+            np.add.at(gradient.T, inputs[~mask], d_out[~mask])
+        else:
+            np.add.at(gradient.T, inputs, d_out)
+
         self.update_parameter("embedding", gradient=gradient)
         return None
 

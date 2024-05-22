@@ -1,9 +1,9 @@
 import numpy as np
+
+import numpitron.distributed as npdist
 from numpitron.nn.activation import Softmax
 from numpitron.nn.linear import Linear
 from numpitron.nn.model import Model
-
-import numpitron.distributed as npdist
 
 
 class Attention(Model):
@@ -27,13 +27,21 @@ class Attention(Model):
         self.add_layer("out_projection", out_projection)
         self.add_layer("softmax", Softmax(axis=-1))
 
-        self.add_settings({"d_model": d_model, "n_heads": n_heads, "d_hidden": d_hidden})
+        self.add_settings(
+            {"d_model": d_model, "n_heads": n_heads, "d_hidden": d_hidden}
+        )
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
         batch_size, seq_len, d_model = inputs.shape
 
+        n_heads = (
+            self.n_heads
+            if not self.is_scattered
+            else self.n_heads // npdist.tensor_parallel_size()
+        )
+
         qkv = self.qkv_projection(inputs)
-        qkv = qkv.reshape(batch_size, seq_len, self.n_heads, -1).transpose(0, 2, 1, 3)
+        qkv = qkv.reshape(batch_size, seq_len, n_heads, -1).transpose(0, 2, 1, 3)
         q, k, v = np.split(qkv, 3, -1)
 
         mask = np.expand_dims(np.tri(seq_len, seq_len, dtype=bool), (0, 1))
@@ -61,11 +69,14 @@ class Attention(Model):
 
     def backward(self, d_out: np.ndarray) -> np.ndarray:
         batch_size, seq_len, d_model = d_out.shape
+        n_heads = (
+            self.n_heads
+            if not self.is_scattered
+            else self.n_heads // npdist.tensor_parallel_size()
+        )
 
         d_out = self.out_projection.backward(d_out)
-        d_out = d_out.reshape(batch_size, seq_len, self.n_heads, -1).transpose(
-            0, 2, 1, 3
-        )
+        d_out = d_out.reshape(batch_size, seq_len, n_heads, -1).transpose(0, 2, 1, 3)
 
         d_out_v = np.matmul(
             self.ctx.pop("attention_weights").transpose(0, 1, 3, 2), d_out
