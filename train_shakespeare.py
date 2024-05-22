@@ -127,7 +127,7 @@ def train(arguments: argparse.Namespace):
                 "train_loss": train_loss,
                 "time": pbar.format_interval(pbar.format_dict["elapsed"]),
             }
-            losses = pd.concat([losses, pd.DataFrame(epoch_data)])
+            losses = pd.concat([losses, pd.DataFrame([epoch_data])])
             losses.to_csv(arguments.model_save_path.parent / "loss.csv", index=False)
 
 
