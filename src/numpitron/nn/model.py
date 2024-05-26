@@ -1,7 +1,7 @@
 from typing import Self
 
-from numpitron.nn.core import Layer
 import numpitron.distributed as npdist
+from numpitron.nn.core import Layer
 
 
 class Model(Layer):
