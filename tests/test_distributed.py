@@ -118,15 +118,14 @@ def test_scatter(
     batch_size: int,
     seq_len: int,
 ) -> None:
-    source_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
-    destination_tensor = np.zeros((batch_size, seq_len, 1))
+    source_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE), dtype=np.float32)
+    destination_tensor = np.zeros((batch_size, seq_len, 1), dtype=np.float32)
 
     if RANK == 0:
         source_tensor = source_tensor + 1.0
 
     npdist.scatter(source_tensor, destination_tensor, axis=-1)
-
-    np.testing.assert_equal(destination_tensor.sum(), batch_size * seq_len // WORLD_SIZE)
+    np.testing.assert_equal(destination_tensor.sum(), batch_size * seq_len)
 
 
 @pytest.mark.parametrize(

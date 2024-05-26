@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import pytest
 import torch
@@ -34,41 +35,50 @@ def test_linear_no_bias():
 def test_row_linear():
     b, s, d = 32, 64, 128
     size, rank = npdist.world_size(), npdist.tensor_parallel_rank()
+    rng = np.random.default_rng(42)
 
-    inputs_scattered = np.ones((b, s, d // size))
-    row_linear = Linear(d, d, weight_init="ones", bias_init="ones", weight_shard_axis=0)
+    inputs = rng.random((b, s, d)).astype(np.float32)
+    row_linear = Linear(d, d, weight_shard_axis=0, rng=rng, bias_init="ones")
+    linear = deepcopy(row_linear)
+
+    inputs_scattered = np.empty((b, s, d // size), dtype=np.float32)
+    npdist.scatter(
+        inputs, inputs_scattered, axis=-1, group=npdist.tensor_parallel_group()
+    )
+
     row_linear.use_bias = rank == 0
     row_linear.scatter()
 
-    outputs = row_linear(inputs_scattered)
+    outputs_tp = row_linear(inputs_scattered)
+    outputs = linear(inputs)
 
-    np.testing.assert_allclose(
-        outputs.sum(), b * s * (d // size) * d + (rank == 0) * b * s * d
-    )
-    assert outputs.shape == (b, s, d)
+    npdist.all_reduce(outputs_tp, group=npdist.tensor_parallel_group())
+
+    np.testing.assert_allclose(outputs, outputs_tp, atol=1e-6)
 
 
+@pytest.mark.skipif(npdist.world_size() != 2, reason="Requires MPI with two processes.")
 def test_column_linear():
     b, s, d = 32, 64, 128
-    size = npdist.world_size()
+    rng = np.random.default_rng(42)
 
-    inputs = np.ones((b, s, d))
-    row_linear = Linear(
-        d,
-        d,
-        weight_init="ones",
-        bias_init="ones",
-        weight_shard_axis=1,
-        bias_shard_axis=0,
+    inputs = rng.random((b, s, d)).astype(np.float32)
+    column_linear = Linear(
+        d, d, weight_shard_axis=1, bias_shard_axis=0, rng=rng, bias_init="ones"
     )
-    row_linear.scatter()
+    linear = deepcopy(column_linear)
 
-    outputs = row_linear(inputs)
+    column_linear.scatter()
 
-    np.testing.assert_allclose(
-        outputs.sum(), b * s * d * (d // size) + b * s * (d // size)
+    outputs_tp = column_linear(inputs)
+    outputs = linear(inputs)
+
+    outputs_tp_gathered = np.empty_like(outputs, dtype=np.float32)
+    npdist.all_gather(
+        outputs_tp, outputs_tp_gathered, axis=-1, group=npdist.tensor_parallel_group()
     )
-    assert outputs.shape == (b, s, d // size)
+
+    np.testing.assert_allclose(outputs, outputs_tp_gathered)
 
 
 def test_pytorch():
