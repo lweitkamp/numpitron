@@ -9,9 +9,22 @@ def softmax_cross_entropy(inputs: np.ndarray, labels: np.ndarray) -> tuple[np.nd
     logits = inputs.reshape(batch_size * seq_len, vocab_chunk_size)
     labels = labels.reshape(batch_size * seq_len)
 
+    # calculate global vocab size to calculate chunk start/end.
+    # TODO: load this from parallel context as constant.
+    if npdist.tensor_parallel_size() > 1:
+        vocab_size = np.array(vocab_chunk_size)
+        npdist.all_reduce(vocab_size, group=npdist.tensor_parallel_group())
+
+        chunk_size = vocab_size // npdist.tensor_parallel_size()
+        chunks = np.arange(0, vocab_size, chunk_size)
+        chunks[1:] += vocab_size % npdist.tensor_parallel_size()
+        chunk_start = chunks[npdist.tensor_parallel_rank()]
+        chunk_end = chunks[npdist.tensor_parallel_rank() + 1]
+    else:
+        chunk_start = 0
+        chunk_end = vocab_chunk_size - 1
+
     # Mask labels not in the current logits chunk.
-    chunk_start = npdist.tensor_parallel_rank() * vocab_chunk_size
-    chunk_end = chunk_start + vocab_chunk_size
     mask = np.logical_or(labels < chunk_start, labels >= chunk_end)
     labels = labels - chunk_start
     labels[mask] = 0

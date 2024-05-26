@@ -23,8 +23,23 @@ class InputEmbedding(Layer):
         )
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-        chunk_start = npdist.tensor_parallel_rank() * self.embedding.data.shape[1]
-        chunk_end = chunk_start + self.embedding.data.shape[1]
+
+        # calculate global vocab size to calculate chunk start/end.
+        # TODO: pre-calculate this in the constructor and save it to
+        # parallel context as a constant?
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
+            vocab_size = np.array(self.embedding.data.shape[1])
+            npdist.all_reduce(vocab_size, group=npdist.tensor_parallel_group())
+
+            chunk_size = vocab_size // npdist.tensor_parallel_size()
+            chunks = np.arange(0, vocab_size, chunk_size)
+            chunks[1:] += vocab_size % npdist.tensor_parallel_size()
+            chunk_start = chunks[npdist.tensor_parallel_rank()]
+            chunk_end = chunks[npdist.tensor_parallel_rank() + 1]
+        else:
+            chunk_start = 0
+            chunk_end = self.embedding.data.shape[1] - 1
+            
         mask = np.logical_or(inputs < chunk_start, inputs >= chunk_end)
 
         # Set tokens to chunk range, mask tokens outside range.
@@ -37,7 +52,7 @@ class InputEmbedding(Layer):
 
         if self.is_scattered:
             inputs_embedding[mask, :] = 0.0
-
+            
         if self.is_scattered and npdist.tensor_parallel_size() > 1:
             npdist.all_reduce(inputs_embedding, group=npdist.tensor_parallel_group())
 

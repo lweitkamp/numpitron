@@ -1,6 +1,7 @@
 from typing import Self
 
 from numpitron.nn.core import Layer
+import numpitron.distributed as npdist
 
 
 class Model(Layer):
@@ -46,4 +47,8 @@ class Model(Layer):
             assert name in layers, f"Expected {name} in {layers}."
 
             model.add_layer(name, getattr(model, name).from_dict(layers[name]))
+            
+            # hacky but parallel context has to be set up already when here.
+            if name == 'mlp':
+                model.mlp.row_linear.use_bias = npdist.tensor_parallel_rank() == 0
         return model
