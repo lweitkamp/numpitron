@@ -21,25 +21,29 @@ class InputEmbedding(Layer):
             weight_init_fn(weight_init, **kwargs)((d_model, vocab_size)),
             shard_axis=1,
         )
+        npdist.set_var("embedding_chunk_start", 0)
+        npdist.set_var("embedding_chunk_end", self.embedding.data.shape[1] - 1)
+
+    def scatter(self, src: int = 0):
+        total_vocab_size = self.embedding.data.shape[1]
+
+        super().scatter(src)
+
+        chunk_size = total_vocab_size // npdist.tensor_parallel_size()
+        chunks = np.arange(0, total_vocab_size, chunk_size)
+        chunks[1:] += total_vocab_size % npdist.tensor_parallel_size()
+        npdist.set_var("embedding_chunk_start", chunks[npdist.tensor_parallel_rank()])
+        npdist.set_var("embedding_chunk_end", chunks[npdist.tensor_parallel_rank() + 1])
+
+    def all_gather(self):
+        super().all_gather()
+        npdist.set_var("embedding_chunk_start", 0)
+        npdist.set_var("embedding_chunk_end", self.embedding.data.shape[1] - 1)
 
     def forward(self, inputs: np.ndarray) -> np.ndarray:
-
-        # calculate global vocab size to calculate chunk start/end.
-        # TODO: pre-calculate this in the constructor and save it to
-        # parallel context as a constant?
-        if self.is_scattered and npdist.tensor_parallel_size() > 1:
-            vocab_size = np.array(self.embedding.data.shape[1])
-            npdist.all_reduce(vocab_size, group=npdist.tensor_parallel_group())
-
-            chunk_size = vocab_size // npdist.tensor_parallel_size()
-            chunks = np.arange(0, vocab_size, chunk_size)
-            chunks[1:] += vocab_size % npdist.tensor_parallel_size()
-            chunk_start = chunks[npdist.tensor_parallel_rank()]
-            chunk_end = chunks[npdist.tensor_parallel_rank() + 1]
-        else:
-            chunk_start = 0
-            chunk_end = self.embedding.data.shape[1] - 1
-            
+        chunk_start = npdist.get_var("embedding_chunk_start")
+        chunk_end = npdist.get_var("embedding_chunk_end")
+        
         mask = np.logical_or(inputs < chunk_start, inputs >= chunk_end)
 
         # Set tokens to chunk range, mask tokens outside range.
