@@ -1,60 +1,50 @@
 import numpy as np
 
-from numpitron.nn.core import Layer
-from numpitron import nn
+from numpitron import distributed as npdist
 
 
-class SoftmaxCrossEntropy(Layer):
-    """Softmax cross-entropy loss function."""
+def softmax_cross_entropy(inputs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    batch_size, seq_len, vocab_chunk_size = inputs.shape
 
-    def __init__(self, name: str = "SoftmaxCrossEntropy", dtype=np.float32):
-        super().__init__(name=name, dtype=dtype)
+    logits = inputs.reshape(batch_size * seq_len, vocab_chunk_size)
+    labels = labels.reshape(batch_size * seq_len)
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray, labels: np.ndarray,
-    ) -> tuple[dict, np.ndarray]:
-        """Calculate the cross-entropy loss given logits (`inputs`).
+    chunk_start = npdist.get_var("embedding_chunk_start")
+    chunk_end = npdist.get_var("embedding_chunk_end")
 
-        Arguments:
-            params (dict[str, np.ndarray]): Parameters (if required).
-            inputs (B, S, V): A batch (B) of sequences S with vocab size V.
-            labels (B, S, 1): A dense set of labels for each batch & sequence.
+    # Mask labels not in the current logits chunk.
+    mask = np.logical_or(labels < chunk_start, labels >= chunk_end)
+    labels = labels - chunk_start
+    labels[mask] = 0
 
-        Returns:
-            Cross-entropy loss.
-        """
-        ctx = {
-            "inputs": inputs,
-            "labels": labels,
-        }
+    # Subtract max for stability - dont use keepdims for (B, S) comm.
+    logits_max = logits.max(axis=-1)
 
-        batch_size, seq_len, vocab_size = inputs.shape
+    if npdist.tensor_parallel_size() > 1:
+        npdist.all_reduce(
+            logits_max, op="max", group=npdist.tensor_parallel_group()
+        )
 
-        logits = inputs.reshape(batch_size * seq_len, vocab_size)
-        labels = labels.reshape(batch_size * seq_len)
+    logits = logits - np.expand_dims(logits_max, -1)
 
-        # Subtract max for stability.
-        logits = logits - logits.max(axis=-1, keepdims=True)
+    # Mask out the predicted logits where labels were masked, (B, S) comm.
+    predicted_logits = logits[np.arange(batch_size * seq_len), labels]
+    predicted_logits[mask] = 0.0
 
-        predicted_logits = logits[np.arange(batch_size * seq_len), labels]
-        logsumexp_logits = np.log(np.sum(np.exp(logits), axis=-1))
+    if npdist.tensor_parallel_size() > 1:
+        npdist.all_reduce(predicted_logits, group=npdist.tensor_parallel_group())
 
-        loss = logsumexp_logits - predicted_logits
-        loss = loss.reshape(batch_size, seq_len)
+    # Calculate log-sum-exp, we will need to communicate the sum (B, S).
+    exp_logits = np.exp(logits)
+    sum_exp_logits = np.sum(exp_logits, axis=-1)
 
-        return ctx, loss
+    if npdist.tensor_parallel_size() > 1:
+        npdist.all_reduce(sum_exp_logits, group=npdist.tensor_parallel_group())
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        """Backwards pass of the softmax-ce loss.
-        
-        @TODO(laurens): maybe refactor loss functions to a Loss clas or so.
-        """
-        batch_size, seq_len, vocab_size = ctx["inputs"].shape
+    loss = -predicted_logits + np.log(sum_exp_logits)
+    loss = loss.reshape(batch_size, seq_len)
 
-        logits = ctx["inputs"].reshape(batch_size * seq_len, vocab_size)
-        labels = ctx["labels"].reshape(batch_size * seq_len)
+    softmax = (exp_logits / np.expand_dims(sum_exp_logits, -1))
+    softmax[np.arange(batch_size * seq_len), labels] -= 1 - mask
 
-        probabilities = nn.softmax(logits, axis=-1)
-        probabilities[np.arange(batch_size * seq_len), labels] -= 1
-
-        return {}, probabilities.reshape(batch_size, seq_len, vocab_size)
+    return loss, softmax.reshape(batch_size, seq_len, vocab_chunk_size)

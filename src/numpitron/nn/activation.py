@@ -10,39 +10,34 @@ def softmax(inputs: np.ndarray, axis: int = -1) -> np.ndarray:
 
 
 class Softmax(Layer):
-    """Softmax layer. Has no associated weights."""
+    def __init__(self, axis: int = -1, **kwargs):
+        super().__init__()
+        self.add_setting("axis", axis)
 
-    def __init__(self, axis: int = -1, name: str = "Softmax", dtype=None):
-        super().__init__(name=name, dtype=dtype)
-        self.axis = axis
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        outputs = softmax(inputs, self.axis)
+        self.ctx["outputs"] = outputs
+        return outputs
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        outputs = softmax(inputs)
-        return {"inputs_sm": np.copy(outputs)}, outputs
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        outputs = self.ctx.pop("outputs")
+        _, _, seq_len, _ = outputs.shape
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        inputs_sm = ctx["inputs_sm"]
-        _, _, seq_len, _ = inputs_sm.shape
-
-        left = np.einsum("...ij, jk -> ...ijk", inputs_sm, np.eye(seq_len))
-        right = np.einsum("...ij, ...ik -> ...ijk", inputs_sm, inputs_sm)
-        d_out = (d_out[..., None, :] @ (left - right)).reshape(inputs_sm.shape)
-        return {}, d_out
+        left = np.einsum(
+            "...ij, jk -> ...ijk", outputs, np.eye(seq_len, dtype=d_out.dtype)
+        )
+        right = np.einsum("...ij, ...ik -> ...ijk", outputs, outputs)
+        d_out = (d_out[..., None, :] @ (left - right)).reshape(outputs.shape)
+        return d_out
 
 
 class ReLU(Layer):
-    """ReLU non-linear activation function. Has no associated weights."""
+    def __init__(self, **kwargs):
+        super().__init__()
 
-    def __init__(self, name: str = "ReLU"):
-        super().__init__(name=name, dtype=None)
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        self.ctx["inputs"] = inputs
+        return np.maximum(0, inputs)
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        return {"inputs": np.copy(inputs)}, np.maximum(0, inputs)
-
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        d_out = (ctx["inputs"] > 0) * d_out
-        return {}, d_out
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        return (self.ctx.pop("inputs") > 0) * d_out

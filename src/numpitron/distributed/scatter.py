@@ -20,6 +20,11 @@ def scatter(
         src (int): Rank from which we scatter the tensor.
         group (MPI.Intracomm): MPI Communicator. Defaults to WORLD.
     """
-    scatter_list = np.split(source_tensor, group.Get_size(), axis=axis)
-    scatter_list = np.concatenate([np.ravel(x) for x in scatter_list])
-    group.Scatterv(scatter_list, destination_tensor, root=src)
+    # In order to deal with possible non-uniform splits, we need to pass
+    # the shapes and displacements to the scatterv function.
+    scatter_list = np.array_split(source_tensor, group.Get_size(), axis=axis)
+    shapes = [np.array(np.prod(x.shape)) for x in scatter_list]
+    displ = [sum(shapes[:p]) for p in range(len(shapes))]
+
+    scatter_list = np.concatenate([x.reshape(-1) for x in scatter_list])
+    group.Scatterv([scatter_list, shapes, displ, MPI.FLOAT], destination_tensor, root=src)

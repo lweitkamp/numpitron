@@ -1,5 +1,3 @@
-"""Test the distributed communications library. If you want to test it, ensure
-that you run it with n>1 processes."""
 import numpy as np
 import pytest
 
@@ -18,8 +16,8 @@ def test_all_gather(
     batch_size: int,
     seq_len: int,
 ) -> None:
-    source_tensor = np.zeros((batch_size, seq_len, 1)) + RANK
-    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
+    source_tensor = np.zeros((batch_size, seq_len, 1), dtype=np.float32) + RANK
+    destination_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE), dtype=np.float32)
 
     npdist.all_gather(source_tensor, destination_tensor, axis=-1)
 
@@ -93,10 +91,6 @@ def test_gather(
         np.testing.assert_equal(destination_tensor, np.zeros_like(destination_tensor))
 
 
-def rest_reduce_scatter() -> None:
-    raise Exception()
-
-
 @pytest.mark.parametrize(
     "batch_size,seq_len",
     [(1, 2), (2, 4)],
@@ -124,14 +118,13 @@ def test_scatter(
     batch_size: int,
     seq_len: int,
 ) -> None:
-    source_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE))
-    destination_tensor = np.zeros((batch_size, seq_len, 1))
+    source_tensor = np.zeros((batch_size, seq_len, WORLD_SIZE), dtype=np.float32)
+    destination_tensor = np.zeros((batch_size, seq_len, 1), dtype=np.float32)
 
     if RANK == 0:
         source_tensor = source_tensor + 1.0
 
     npdist.scatter(source_tensor, destination_tensor, axis=-1)
-
     np.testing.assert_equal(destination_tensor.sum(), batch_size * seq_len)
 
 

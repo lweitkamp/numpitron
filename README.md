@@ -8,59 +8,56 @@ This library is meant as a learning experience for implementing distributed trai
 Core functionality will be 3D parallel and ZeRO stage 1 since these can be combined in general:
 
 * [x] Single Core 
-* [ ] Tensor Parallel 
+* [x] Tensor Parallel 
 * [ ] Distributed Data Parallel 
 * [ ] Pipeline Parallel
 * [ ] ZeRO
 
-When/if this is done, we can look at sequence parallel strategies.
+When/if this is done, we will look at expert parallel strategies.
 
 
 # Installation
+First, ensure `mpi4py` is installed by following the instructions on the [MPI for Python](https://mpi4py.readthedocs.io) page.
+
+Then, install the library using:
+
 ```bash
 git clone https://github.com/lweitkamp/numpitron
 cd numpitron
-pip install -e .
-```
-
-If you want to additionally run the unit tests:
-```bash
-pip install -e .[dev]
-pytest tests
+pip install -e .  # -e .[dev] for unit tests
 ```
 
 # Examples
-First, download the shakespare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `examples` folder.
+You will need to download the shakespeare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `data` folder.
 
-You can run a sample character level training run on the shakespeare corpus using:
+Training with tensor parallelism can be done using the `train_shakespeare.py` script:
 ```bash
-python train.py \
-    --config-path examples/shakespeare_transformer.json \
-    --save-path examples
+mpirun -n 2 python train_shakespeare.py --tensor-parallel-size 2
 ```
 
-This will save the parameters and optimizer state at `examples/shakespeare_Transformer.npy` to be used for sampling.
+This will also save the parameters and optimizer state at `data/model.npy` to be used for sampling. Training takes about 12 hours for `--tensor-parallel-size 2` and 32 hours without tensor parallel, reaching a loss of about ~1.80[^1] after a couple of hours, depending on your hardware (I'm using a 2015 macbook pro):
 
-Be advised that training for about 10 epochs took 24+ hours on my 2015 macbook pro, with a loss of about ~1.80[^1].
-I would not recommend training from scratch but to download the state `shakespeare_Transformer.npy` from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) to the `examples` folder.
+<img src="data/validation_loss.svg" width=50% height=50%>
 
 Run a sample generation using:
 ```bash
-python sample.py \
-    --config-path examples/shakespeare_transformer.json \
-    --state-path examples/shakespeare_Transformer.npy
+mpirun -n 2 python sample.py --tensor-parallel-size 2
 ```
 
 With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
 
 ```
-Somaging:
-I am as I, Wath I drows Bolingbourable is the equittion our to me housand;
-My sound, there the speech your thether is
-What is blessixes, gard carrer are prince of All,
-Has enluckin. Theer betther,
-And live might! this subjectt
-to fill they
+Seecon:
+Commendom:
+Who tear pout mine so I profit in.
+
+BRUTUS:
+Why, bear are dreadful he gnot letted and Chrown.
+
+AUFIDIUS:
+The may my heart, John my moone, with have glo:
+But the bluike to ther opeesusate! Camille,
+A marin curstifies will to a lise
 ```
 
 [^1]: This matches Karpathy's log loss at same model size at his [NanoGPT](https://github.com/karpathy/nanoGPT?tab=readme-ov-file#quick-start) repo.

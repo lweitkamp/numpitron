@@ -1,97 +1,128 @@
-import numpy as np
-from numpy.random import Generator
+from typing import Self
 
-from numpitron.nn.core import Layer
+import numpy as np
+
+import numpitron.distributed as npdist
+from numpitron.nn.core import Layer, weight_init_fn
 
 
 class InputEmbedding(Layer):
-    """The input embedding lookup-table."""
-
     def __init__(
-        self, d_model: int, vocab_size: int, name="InputEmbedding", dtype=np.float32
+        self,
+        d_model: int,
+        vocab_size: int,
+        weight_init: str = "scaled_normal",
+        **kwargs,
     ):
-        super().__init__(name=name, dtype=dtype)
-        self.d_model = d_model
-        self.vocab_size = vocab_size
+        super().__init__()
+        self.add_settings({"d_model": d_model, "vocab_size": vocab_size})
+        self.add_parameter(
+            "embedding",
+            weight_init_fn(weight_init, **kwargs)((d_model, vocab_size)),
+            shard_axis=1,
+        )
+        npdist.set_var("embedding_chunk_start", 0)
+        npdist.set_var("embedding_chunk_end", self.embedding.data.shape[1] - 1)
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        params: dict[str, np.ndarray] = {
-            "embedding": rng.random((self.d_model, self.vocab_size)),
-        }
-        return {key: value.astype(self.dtype) for key, value in params.items()}
+    def scatter(self, src: int = 0):
+        total_vocab_size = self.embedding.data.shape[1]
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        """Given an embedding table and input tokens, embed the tokens.
+        super().scatter(src)
+        
+        if npdist.tensor_parallel_size() > 1:
+            chunk_size = total_vocab_size // npdist.tensor_parallel_size()
+            chunks = np.arange(0, total_vocab_size, chunk_size)
+            chunks[1:] += total_vocab_size % npdist.tensor_parallel_size()
+            npdist.set_var("embedding_chunk_start", chunks[npdist.tensor_parallel_rank()])
+            npdist.set_var("embedding_chunk_end", chunks[npdist.tensor_parallel_rank() + 1])
 
-        Arguments:
-            params (dict[str, np.ndarray]): parameters with key 'embedding'
-                present.
-            inputs (np.ndarray): Input tokens of type int32.
+    def all_gather(self):
+        super().all_gather()
+        npdist.set_var("embedding_chunk_start", 0)
+        npdist.set_var("embedding_chunk_end", self.embedding.data.shape[1] - 1)
 
-        Returns:
-            Token embeddings.
-        """
-        inputs_embedding = np.take(params["embedding"].T, inputs, axis=0)
-        ctx = {"inputs": inputs, "embedding": params["embedding"]}
-        return ctx, inputs_embedding
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        chunk_start = npdist.get_var("embedding_chunk_start")
+        chunk_end = npdist.get_var("embedding_chunk_end")
+        
+        mask = np.logical_or(inputs < chunk_start, inputs >= chunk_end)
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[np.ndarray, dict]:
-        gradients = {"embedding": np.zeros_like(ctx["embedding"])}
-        np.add.at(gradients["embedding"].T, ctx["inputs"], d_out)
-        return gradients, d_out
+        # Set tokens to chunk range, mask tokens outside range.
+        if self.is_scattered:
+            inputs = inputs - chunk_start
+            inputs[mask] = 0
+
+        # Take the correct embeddings and mask outside range.
+        inputs_embedding = np.take(self.embedding.data.T, inputs, axis=0)
+
+        if self.is_scattered:
+            inputs_embedding[mask, :] = 0.0
+            
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
+            npdist.all_reduce(inputs_embedding, group=npdist.tensor_parallel_group())
+
+        self.ctx["inputs"] = inputs
+        self.ctx["mask"] = mask
+
+        return inputs_embedding
+
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        gradient = (
+            np.zeros_like(self.embedding.data)
+            if self.embedding.gradient is None
+            else self.embedding.gradient
+        )
+        inputs = self.ctx.pop("inputs")
+        mask = self.ctx.pop("mask")
+        if self.is_scattered:
+            np.add.at(gradient.T, inputs[~mask], d_out[~mask])
+        else:
+            np.add.at(gradient.T, inputs, d_out)
+
+        self.update_parameter("embedding", gradient=gradient)
+        return None
 
 
 class OutputEmbedding(Layer):
-    """The output embedding producing logits. weight are tied with that
-    of the input embedding layer."""
+    def __init__(self, input_embedding: Layer, **kwargs):
+        super().__init__()
+        self.input_embedding = input_embedding
 
-    def __init__(
-        self, d_model: int, vocab_size: int, name="OutputEmbedding", dtype=np.float32
-    ):
-        super().__init__(name=name, dtype=dtype)
-        self.d_model = d_model
-        self.vocab_size = vocab_size
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        outputs_embedding = inputs @ self.input_embedding.embedding.data
+        self.ctx["inputs"] = inputs
+        return outputs_embedding
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        return {}
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        self.input_embedding.update_parameter(
+            "embedding",
+            gradient=np.einsum("bsd, bsv -> dv", self.ctx.pop("inputs"), d_out),
+        )
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        """Calculate the logits through a simple matrix product."""
-        ctx = {"inputs": inputs, "embedding": params["embedding"]}
-        outputs_embedding = inputs @ params["embedding"]
-        return ctx, outputs_embedding
+        d_out = d_out @ self.input_embedding.embedding.data.T
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        """Perform a backward pass, calculating the gradients."""
-        gradients = {"embedding": np.einsum("bsd, bsv -> dv", ctx["inputs"], d_out)}
-        d_out = d_out @ ctx["embedding"].T
-        return gradients, d_out
+        if self.is_scattered and npdist.tensor_parallel_size() > 1:
+            npdist.all_reduce(d_out, group=npdist.tensor_parallel_group())
+
+        return d_out
+
+    @classmethod
+    def from_dict(cls, layer_dict: dict[str, dict]) -> Self:
+        return cls(None)
 
 
-class PositionalEmbedding(Layer):
-    """Technically an encoding, just using fourier features."""
-
-    def __init__(
-        self, d_model: int, seq_len: int, name="PositionalEmbedding", dtype=np.float32
-    ):
-        super().__init__(name=name, dtype=dtype)
+class PositionalEncoding(Layer):
+    def __init__(self, d_model: int, seq_len: int, **kwargs):
+        super().__init__()
+        self.add_settings({"d_model": d_model, "seq_len": seq_len})
         pos = np.expand_dims(np.arange(0, seq_len), -1)
         _2i = np.arange(d_model, step=2) / d_model
-        encoding = np.zeros((seq_len, d_model), dtype=dtype)
+        encoding = np.zeros((seq_len, d_model), dtype=np.float32)
         encoding[:, 0::2] = np.sin(pos / (10000**_2i))
         encoding[:, 1::2] = np.cos(pos / (10000**_2i))
         self.encoding = encoding
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
         _, seq_len, *_ = inputs.shape
         inputs_encoding = self.encoding[:seq_len, :] + inputs
-        return {}, inputs_encoding
-
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        return {}, d_out
+        return inputs_encoding

@@ -1,3 +1,3 @@
-# flake8: noqa
-from numpitron.data.loader import DataLoader, get_dataloader
+# ruff: noqa: F401
 from numpitron.data.tokenizer import Tokenizer
+from numpitron.data.loader import DataLoader

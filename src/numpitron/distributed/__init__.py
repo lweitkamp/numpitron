@@ -25,11 +25,20 @@ class ParallelState:
     pipeline_parallel_group: MPI.Group = None
     data_parallel_group: MPI.Group = None
     model_parallel_group: MPI.Group = None
+    shared_variables: dict = field(default_factory=dict)
 
 
 # The default parallel state only has the world group active.
 PARALLEL_STATE = ParallelState()
 
+
+def set_var(name: str, value: np.ndarray) -> None:
+    """Add a shared variable to the shared variables dictionary."""
+    PARALLEL_STATE.shared_variables[name] = value
+
+def get_var(name: str) -> None:
+    """Add a shared variable to the shared variables dictionary."""
+    return PARALLEL_STATE.shared_variables.get(name, None)
 
 def world_size() -> int:
     """Returns the size of the world group (all possible ranks)."""

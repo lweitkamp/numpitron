@@ -1,111 +1,184 @@
-"""Core layer abstractions."""
-from abc import ABC
-from pathlib import Path
-from typing import Callable
+from abc import abstractmethod
+from dataclasses import asdict, dataclass, replace
 
 import numpy as np
 from numpy.random import Generator
 
+from numpitron import distributed as npdist
 
-class Layer(ABC):
-    """Layer defines that a layer should have a forward path annd a backward
-    path, alongside a way to init a layer with no parameters by default.
 
-    Args:
-        name (str): name of the layer, crucial for sequential models.
-        dtype (np.dtype): data type the layer works on.
+def weight_init_fn(
+    name: str = "default",
+    rng: Generator | None = None,
+    scale: float = 1.0,
+    **kwargs,
+):
+    def zeros(shape: tuple[int, ...]):
+        return np.zeros(shape).astype(np.float32)
 
-    """
+    def ones(shape: tuple[int, ...]):
+        return np.ones(shape).astype(np.float32)
 
-    def __init__(self, name: str, dtype):
-        self.name = name
-        self.dtype = dtype
+    def in_projection(shape: tuple[int, int]):
+        assert rng is not None
+        in_, out_ = shape
+        weight = rng.random((in_, out_)) * 3 / (in_ * out_)
+        return weight.astype(np.float32)
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        """Initialize this layer's weights. Default has no weights.
+    def scaled_normal(shape: tuple[int, ...]):
+        assert rng is not None
+        weight = rng.random(shape) * scale
+        return weight.astype(np.float32)
 
-        A weight is a dictionary of possible sub-dictionaries that
-        lead to numpy arrays, denoted here as a tree of parameters typically.
+    def init_for_testing(shape: tuple[int, ...]):
+        assert rng is not None
+        weight = (rng.random(shape) + 1) / max(shape)
+        return weight.astype(np.float32)
 
-        Args:
-            rng (Generator): NumPy random number generator.
-        """
-        return {}
+    options = {
+        "zeros": zeros,
+        "ones": ones,
+        "in_projection": in_projection,
+        "scaled_normal": scaled_normal,
+        "init_for_testing": init_for_testing,
+    }
+    return options[name]
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        return {}, inputs
 
-    def backward(self, ctx: dict, d_out: np.ndarray) -> tuple[dict, np.ndarray]:
-        return {}, d_out
+@dataclass(frozen=True)
+class Parameter:
+    data: np.ndarray
+    gradient: np.ndarray
+    shard_axis: int | None = None
 
-    def __call__(self, *args, **kwargs) -> tuple[dict, np.ndarray]:
+
+class Layer:
+    def __init__(self, **kwargs):
+        self.ctx = {}  # Backward pass variables.
+        self.parameters = {}  # Anything requiring a gradient.
+        self.settings = {}  # Anything that is required for initializing itself.
+        self.is_scattered = False
+
+    @abstractmethod
+    def forward(self):
+        ...
+
+    def backward(self, d_out: np.ndarray) -> np.ndarray:
+        return d_out
+
+    def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
 
+    def add_parameter(
+        self, name, data: np.ndarray, shard_axis: int | None = None
+    ) -> None:
+        """Add a parameter, any numpy array that also has a gradient."""
+        if shard_axis is not None:
+            assert shard_axis <= len(
+                data.shape
+            ), f"Cannot shard {shard_axis} on {len(data.shape)} dims."
+        setattr(self, name, Parameter(data=data, gradient=None, shard_axis=shard_axis))
+        self.parameters[name] = getattr(self, name)
 
-class Sequential(Layer):
-    """A sequential layer makes it easier to define a list of sequential
-    operations."""
+    def add_setting(self, name, value):
+        setattr(self, name, value)
+        self.settings[name] = value
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.layers = []
+    def add_settings(self, settings: dict):
+        for key, value in settings.items():
+            self.add_setting(key, value)
 
-    def init_params(self, rng: Generator) -> dict[str, np.ndarray]:
-        return {layer.name: layer.init_params(rng) for layer in self.layers}
+    def update_parameter(self, name: str, **updates):
+        current_parameter = getattr(self, name)
+        setattr(self, name, replace(current_parameter, **updates))
+        self.parameters[name] = getattr(self, name)
 
-    def forward(
-        self, params: dict[str, np.ndarray], inputs: np.ndarray
-    ) -> tuple[dict, np.ndarray]:
-        ctxs = {}
-        for layer in self.layers:
-            ctx, inputs = layer(params[layer.name], inputs)
-            ctxs[layer.name] = ctx
-        return ctxs, inputs
+    def to_dict(self):
+        """Return a dictionary representation of this layer."""
+        parameters = {name: asdict(getattr(self, name)) for name in self.parameters}
+        return {"settings": self.settings, "parameters": parameters}
 
-    def backward(
-        self,
-        ctx: dict[str, dict],
-        d_out: np.ndarray,
-    ) -> tuple[dict[str, dict], np.ndarray]:
-        gradients = {}
-        for layer in self.layers[::-1]:
-            gradient, d_out = layer.backward(ctx[layer.name], d_out)
-            gradients[layer.name] = gradient
-        return gradients, d_out
+    @classmethod
+    def from_dict(cls, layer_dict: dict[str, dict]):
+        settings, parameters = layer_dict["settings"], layer_dict["parameters"]
+        settings |= {"weight_init": "zeros", "bias_init": "zeros"}
+        layer = cls(**settings)
 
+        for name, parameter in parameters.items():
+            layer.add_parameter(name, parameter["data"], parameter["shard_axis"])
+        return layer
 
-def save_params(save_path: Path | str, params: dict) -> None:
-    """Store a tree of parameters in pickle form.
+    def scatter(self, src: int = 0):
+        """Scatter this layer in place."""
+        assert not self.is_scattered, "Cannot scatter an already scattered layer."
+        for name, parameter in self.parameters.items():
+            if parameter.shard_axis is None:
+                continue
 
-    Args:
-        save_path (Path or str): Path to save to.
-        params (dict): tree of parameters to save.
-    """
-    np.save(save_path, params, allow_pickle=True)
+            update = {}
 
+            # New shape depends on the division of the tensor parallel size.
+            new_shape = np.array_split(
+                parameter.data, npdist.tensor_parallel_size(), axis=parameter.shard_axis
+            )[npdist.tensor_parallel_rank()].shape
+            new_data = np.zeros(new_shape, dtype=parameter.data.dtype)
 
-def load_params(load_path: Path | str) -> dict:
-    """Load a tree of parameters in pickle form.
+            npdist.scatter(
+                parameter.data,
+                new_data,
+                parameter.shard_axis,
+                src,
+                npdist.tensor_parallel_group(),
+            )
+            update["data"] = new_data
 
-    Args:
-        load_path (Path or str): Path to load pickle from.
+            if parameter.gradient is not None:
+                new_gradient = np.zeros(new_shape, dtype=parameter.gradient.dtype)
+                npdist.scatter(
+                    parameter.gradient,
+                    new_gradient,
+                    parameter.shard_axis,
+                    src,
+                    npdist.tensor_parallel_group(),
+                )
+                update["gradient"] = new_gradient
 
-    Returns:
-        tree of parameters.
-    """
-    return np.load(load_path, allow_pickle=True)[()]
+            self.update_parameter(name, **update)
+        self.is_scattered = True
 
+    def all_gather(self):
+        """All-gather this layer in place."""
+        for name, parameter in self.parameters.items():
+            if parameter.shard_axis is None:
+                continue
 
-def tree_map(fn: Callable, tree: dict, **kwargs):
-    if isinstance(tree, np.ndarray):
-        fn(tree, **kwargs)
-        return
+            update = {}
 
-    assert isinstance(tree, dict), (
-        f"Input to tree map must be dict, found {type(tree)}"
-    )
+            new_shape = list(parameter.data.shape)
+            shard_dim = np.array(new_shape[parameter.shard_axis])
+            new_shape[parameter.shard_axis] = npdist.all_reduce(
+                shard_dim, group=npdist.tensor_parallel_group()
+            )
+            new_shape[parameter.shard_axis] = int(shard_dim)
 
-    for key, value in tree.items():
-        tree_map(fn, value, **kwargs)
+            new_data = np.zeros(new_shape, dtype=parameter.data.dtype)
+            npdist.all_gather(
+                parameter.data,
+                new_data,
+                parameter.shard_axis,
+                npdist.tensor_parallel_group(),
+            )
+            update["data"] = new_data
+
+            if parameter.gradient is not None:
+                new_gradient = np.zeros(new_shape, dtype=parameter.gradient.dtype)
+                npdist.all_gather(
+                    parameter.gradient,
+                    new_gradient,
+                    parameter.shard_axis,
+                    npdist.tensor_parallel_group(),
+                )
+                update["gradient"] = new_gradient
+
+            self.update_parameter(name, **update)
+        self.is_scattered = False
