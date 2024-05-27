@@ -28,12 +28,13 @@ class InputEmbedding(Layer):
         total_vocab_size = self.embedding.data.shape[1]
 
         super().scatter(src)
-
-        chunk_size = total_vocab_size // npdist.tensor_parallel_size()
-        chunks = np.arange(0, total_vocab_size, chunk_size)
-        chunks[1:] += total_vocab_size % npdist.tensor_parallel_size()
-        npdist.set_var("embedding_chunk_start", chunks[npdist.tensor_parallel_rank()])
-        npdist.set_var("embedding_chunk_end", chunks[npdist.tensor_parallel_rank() + 1])
+        
+        if npdist.tensor_parallel_size() > 1:
+            chunk_size = total_vocab_size // npdist.tensor_parallel_size()
+            chunks = np.arange(0, total_vocab_size, chunk_size)
+            chunks[1:] += total_vocab_size % npdist.tensor_parallel_size()
+            npdist.set_var("embedding_chunk_start", chunks[npdist.tensor_parallel_rank()])
+            npdist.set_var("embedding_chunk_end", chunks[npdist.tensor_parallel_rank() + 1])
 
     def all_gather(self):
         super().all_gather()

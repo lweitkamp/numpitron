@@ -28,32 +28,36 @@ pip install -e .  # -e .[dev] for unit tests
 ```
 
 # Examples
-You will need to download the shakespeare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `examples` folder.
+You will need to download the shakespeare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `data` folder.
 
 Training with tensor parallelism can be done using the `train_shakespeare.py` script:
 ```bash
 mpirun -n 2 python train_shakespeare.py --tensor-parallel-size 2
 ```
 
-This will also save the parameters and optimizer state at `examples/model.npy` to be used for sampling. Training can take up to two days for 100 epochs but you can get a pretty good model at ~1.80[^1] validation loss within 5 hours or so, depending on your hardware (I'm using a 2015 macbook pro).
+This will also save the parameters and optimizer state at `data/model.npy` to be used for sampling. Training takes about 12 hours for `--tensor-parallel-size 2` and 32 hours without tensor parallel, reaching a loss of about ~1.80[^1] after a couple of hours, depending on your hardware (I'm using a 2015 macbook pro):
+
+<img src="data/validation_loss.svg" width=50% height=50%>
 
 Run a sample generation using:
 ```bash
-python sample.py \
-    --config-path examples/shakespeare_transformer.json \
-    --state-path examples/shakespeare_Transformer.npy
+mpirun -n 2 python sample.py --tensor-parallel-size 2
 ```
 
 With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
 
 ```
-Somaging:
-I am as I, Wath I drows Bolingbourable is the equittion our to me housand;
-My sound, there the speech your thether is
-What is blessixes, gard carrer are prince of All,
-Has enluckin. Theer betther,
-And live might! this subjectt
-to fill they
+Seecon:
+Commendom:
+Who tear pout mine so I profit in.
+
+BRUTUS:
+Why, bear are dreadful he gnot letted and Chrown.
+
+AUFIDIUS:
+The may my heart, John my moone, with have glo:
+But the bluike to ther opeesusate! Camille,
+A marin curstifies will to a lise
 ```
 
 [^1]: This matches Karpathy's log loss at same model size at his [NanoGPT](https://github.com/karpathy/nanoGPT?tab=readme-ov-file#quick-start) repo.

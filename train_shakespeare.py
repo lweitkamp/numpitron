@@ -143,15 +143,15 @@ parser.add_argument("--n-layers", type=int, default=4)
 parser.add_argument("--batch-size", type=int, default=12)
 parser.add_argument("--n-epochs", type=int, default=100)
 parser.add_argument(
-    "--tokenizer-path", type=Path, default="examples/shakespeare_tokenizer.json"
+    "--tokenizer-path", type=Path, default="data/shakespeare_tokenizer.json"
 )
 parser.add_argument(
-    "--train-dataset-path", type=Path, default="examples/shakespeare_char_train.bin"
+    "--train-dataset-path", type=Path, default="data/shakespeare_char_train.bin"
 )
 parser.add_argument(
-    "--validation-dataset-path", type=Path, default="examples/shakespeare_char_val.bin"
+    "--validation-dataset-path", type=Path, default="data/shakespeare_char_val.bin"
 )
-parser.add_argument("--model-save-path", type=Path, default="examples/model.npy")
+parser.add_argument("--model-save-path", type=Path, default="data/model.npy")
 parser.add_argument("--seed", type=int, default=42)
 
 # Optimization related.

@@ -78,9 +78,9 @@ def generate(arguments: argparse.Namespace):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--model-save-path", type=Path, default="examples/model.npy")
+parser.add_argument("--model-save-path", type=Path, default="data/model.npy")
 parser.add_argument(
-    "--tokenizer-path", type=Path, default="examples/shakespeare_tokenizer.json"
+    "--tokenizer-path", type=Path, default="data/shakespeare_tokenizer.json"
 )
 parser.add_argument("--seed", type=int, default=42)
 
