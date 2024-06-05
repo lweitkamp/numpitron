@@ -1,5 +1,8 @@
 from typing import Self
 
+import numpy as np
+from numpy import ndarray
+
 import numpitron.distributed as npdist
 from numpitron.nn.core import Layer
 
@@ -8,6 +11,16 @@ class Model(Layer):
     def __init__(self) -> None:
         super().__init__()
         self.layers = {}
+
+    def forward(self, inputs: np.ndarray) -> np.ndarray:
+        for layer in self.layers.values():
+            inputs = layer(inputs)
+        return inputs
+
+    def backward(self, d_out: ndarray) -> ndarray:
+        for layer in list(self.layers.values())[::-1]:
+            d_out = layer.backward(d_out)
+        return d_out
 
     def add_layer(self, name, layer: Layer) -> None:
         """Add a layer to the model."""
@@ -47,7 +60,7 @@ class Model(Layer):
             assert name in layers, f"Expected {name} in {layers}."
 
             model.add_layer(name, getattr(model, name).from_dict(layers[name]))
-            
+
             # hacky but parallel context has to be set up already when here.
             if name == 'mlp':
                 model.mlp.row_linear.use_bias = npdist.tensor_parallel_rank() == 0

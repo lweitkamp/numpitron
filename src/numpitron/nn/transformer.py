@@ -45,18 +45,17 @@ class Transformer(Model):
             self.add_layer(f"block_{layer}", block())
         self.add_layer("output_embedding", OutputEmbedding(self.input_embedding))
 
-    def forward(self, inputs: np.ndarray) -> np.ndarray:
-        outputs = self.positional_encoding(self.input_embedding(inputs))
-        for layer in range(self.n_layers):
-            outputs = self.layers[f"block_{layer}"](outputs)
-        outputs = self.output_embedding(outputs)
-        return outputs
-
     def backward(self, d_out: np.ndarray) -> np.ndarray:
-        d_out = self.output_embedding.backward(d_out)
-        for layer in range(self.n_layers - 1, -1, -1):
-            d_out = self.layers[f"block_{layer}"].backward(d_out)
-        d_out = self.input_embedding.backward(d_out)
+        for layer in list(self.layers.values())[::-1]:
+            d_out = layer.backward(d_out)
+
+            if npdist.data_parallel_size() > 1:
+                for parameter in layer.parameters.values():
+                    # Inplace allreduce on frozen dict object is a bit sketchy.
+                    npdist.all_reduce(
+                        parameter.gradient, group=npdist.data_parallel_group()
+                    )
+
         return d_out
 
     @classmethod

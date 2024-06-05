@@ -42,7 +42,9 @@ def checkpoint(model, optimizer, epoch, loss, save_path):
 
 
 def train(arguments: argparse.Namespace):
-    npdist.init(tp_size=arguments.tensor_parallel_size)
+    npdist.init(
+        tp_size=arguments.tensor_parallel_size, dp_size=arguments.data_parallel_size
+    )
     rank = npdist.world_rank()
 
     tokenizer = Tokenizer.from_pretrained(arguments.tokenizer_path)
@@ -161,6 +163,7 @@ parser.add_argument("--beta2", type=float, default=0.99)
 
 # Parallelization related.
 parser.add_argument("--tensor-parallel-size", type=int, default=1)
+parser.add_argument("--data-parallel-size", type=int, default=1)
 
 
 if __name__ == "__main__":
