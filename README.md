@@ -11,6 +11,7 @@ Core functionality will be 3D parallel and ZeRO stage 1 since these can be combi
 * [x] Tensor Parallel
 * [x] Distributed Data Parallel
 * [ ] Pipeline Parallel
+* [ ] Distributed sampling strategies
 * [ ] ZeRO
 
 When/if this is done, we will look at expert parallel strategies.
