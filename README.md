@@ -28,7 +28,7 @@ cd numpitron
 pip install -e .  # -e .[dev] for unit tests
 ```
 
-# Examples
+# Training
 You will need to download the shakespeare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `data` folder.
 
 Training with tensor/data parallelism can be done using the `train_shakespeare.py` script:
@@ -46,11 +46,14 @@ Note that the graph above only implies that on CPU you are better off performing
 This makes sense given that you are compute bound quite easily on the CPU.
 
 
+# Sampling
 Run a sample generation using the following:
 
 ```bash
 mpirun -n {1, 2, ...} python sample.py \
-    --tensor-parallel-size {1, 2, ..}
+    --sampler {greedy, softmax} \
+    --tensor-parallel-size {1, 2, ...} \
+    --data-parallel-size {1, 2, ...}
 ```
 
 With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
