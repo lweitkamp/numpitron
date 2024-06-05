@@ -27,38 +27,38 @@ def generate(arguments: argparse.Namespace):
 
     rng = np.random.default_rng(arguments.seed)
 
-    predicted_text = ""
-    tokens = np.array(
-        [tokenizer.encode(arguments.initial_prompt)] * arguments.num_samples
-    )
-
-    # TODO Scatter tokens if data parallel is enabled
+    tokens = np.array([tokenizer.encode("\n")] * arguments.num_samples, dtype=np.uint16)
     if npdist.data_parallel_size() > 1:
-        pass
+        scattered_tokens = np.empty(
+            (arguments.num_samples // npdist.data_parallel_size(), 1),
+            dtype=np.uint16,
+        )
+        npdist.scatter(
+            tokens, scattered_tokens, axis=0, group=npdist.data_parallel_group()
+        )
+        tokens = scattered_tokens
 
-    for _ in trange(arguments.sample_length):
-        tokens = tokens[-transformer.seq_len :]
-        logits = transformer(np.asarray([tokens]))
+    for _ in trange(transformer.seq_len - 1):
+        logits = transformer(tokens)
 
         if arguments.sampler == "softmax":
-            next_token = softmax_sample(
+            next_tokens = softmax_sample(
                 logits, arguments.temperature, rng, tokenizer.vocab_size
             )
         elif arguments.sampler == "greedy":
-            next_token = greedy_sample(logits)
+            next_tokens = greedy_sample(logits)
 
-        tokens.append(next_token)
+        tokens = np.concatenate([tokens, np.array(next_tokens)[:, None]], axis=-1)
 
-        predicted_text += tokenizer.decode([next_token])
-
-    # TODO gather tokens if data parallel is enabled
+    tokens = tokens.astype(np.uint16)
     if npdist.data_parallel_size() > 1:
-        pass
+        gathered_tokens = np.zeros((arguments.num_samples, transformer.seq_len), dtype=np.uint16)
+        npdist.all_gather(tokens, gathered_tokens, axis=0, group=npdist.data_parallel_group())
+        tokens = gathered_tokens
 
-    # TODO print for each batch
-    if npdist.tensor_parallel_rank() == 0:
-        for batch_idx in arguments.num_samples:
-            print(f"\033[1m{arguments.initial_prompt}\033[0m{predicted_text}")
+    if npdist.world_rank() == 0:
+        for i, batch in enumerate(map(tokenizer.decode, tokens)):
+            print(f"Batch {i}:{batch}\n")
 
 
 parser = argparse.ArgumentParser()
@@ -70,8 +70,6 @@ parser.add_argument(
 parser.add_argument("--seed", type=int, default=42)
 
 parser.add_argument("--sampler", type=str, default="softmax")
-parser.add_argument("--initial-prompt", type=str, default="\n")
-parser.add_argument("--sample-length", type=int, default=250)
 parser.add_argument("--num-samples", type=int, default=1)
 parser.add_argument("--temperature", type=float, default=1.0)
 

@@ -7,8 +7,7 @@ from numpitron.nn import softmax
 
 def greedy_sample(logits) -> int:
     """Greedy sampling - just an argmax."""
-    assert logits.shape[0] == 1, "Only single batch size supported"
-    logits = logits[0, -1, :]
+    logits = logits[:, -1, :]
 
     rank_max_index = logits.argmax()
     rank_max_value = logits[rank_max_index]
@@ -32,12 +31,13 @@ def greedy_sample(logits) -> int:
 def softmax_sample(logits, temperature: float, rng: Generator, vocab_size: int) -> int:
     """Sampling according to a softmax distribution with temperature, but
     we will materialize the entire logits tensor on device (inefficient)."""
-    assert logits.shape[0] == 1, "Only single batch size supported"
-    logits = logits[0, -1, :]
-    logits_full = np.empty(vocab_size, dtype=np.float32)
+    logits = logits[:, -1, :]
 
-    npdist.all_gather(logits, logits_full, group=npdist.tensor_parallel_group())
+    if npdist.tensor_parallel_size() > 1:
+        logits_full = np.zeros(vocab_size, dtype=np.float32)
+        npdist.all_gather(logits, logits_full, group=npdist.tensor_parallel_group())
+        logits = logits_full
 
-    probabilities = softmax((logits_full / temperature).astype(np.float64))
-    token = rng.multinomial(1, probabilities).argmax()
-    return token
+    probabilities = softmax((logits / temperature).astype(np.float64))
+    tokens = list(map(lambda probs: rng.multinomial(1, probs).argmax(), probabilities))
+    return tokens

@@ -5,14 +5,13 @@ Simplistic small language model 3D-parallelism training using NumPy and MPI. Ins
 This library is meant as a learning experience for implementing distributed training strategies. Ideally the library will be capable of both 3D parallelism (TP + MP + DP) and ZeRO. If you want to follow along, make sure to check out my [blog](https://lweitkamp.github.io/).
 
 # Feature Roadmap
-Core functionality will be 3D parallel and ZeRO stage 1 since these can be combined in general:
+Core functionality will be 3D parallel with some decoding strategies:
 
 * [x] Single Core 
 * [x] Tensor Parallel
 * [x] Distributed Data Parallel
 * [ ] Pipeline Parallel
 * [ ] Distributed sampling strategies
-* [ ] ZeRO
 
 When/if this is done, we will look at expert parallel strategies.
 
