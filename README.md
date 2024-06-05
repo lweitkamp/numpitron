@@ -47,7 +47,7 @@ This makes sense given that you are compute bound quite easily on the CPU.
 Run a sample generation using the following:
 
 ```bash
-mpirun -n {1, 2, ...} python sample.py --sampler {softmax, greedy} --tensor-parallel-size {1, 2, ..} --data-parallel-size {1, 2, ...}
+mpirun -n {1, 2, ...} python sample.py --tensor-parallel-size {1, 2, ..}
 ```
 
 With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
