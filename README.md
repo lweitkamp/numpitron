@@ -8,8 +8,8 @@ This library is meant as a learning experience for implementing distributed trai
 Core functionality will be 3D parallel and ZeRO stage 1 since these can be combined in general:
 
 * [x] Single Core 
-* [x] Tensor Parallel 
-* [ ] Distributed Data Parallel 
+* [x] Tensor Parallel
+* [x] Distributed Data Parallel
 * [ ] Pipeline Parallel
 * [ ] ZeRO
 
@@ -30,18 +30,23 @@ pip install -e .  # -e .[dev] for unit tests
 # Examples
 You will need to download the shakespeare dataset (`shakespeare_char_{train|val}.bin`) from [Google Drive](https://drive.google.com/drive/folders/1VwFHJ8z7EmjTJZv4XsISTyPwwpELyMOs?usp=sharing) and place it in the `data` folder.
 
-Training with tensor parallelism can be done using the `train_shakespeare.py` script:
+Training with tensor/data parallelism can be done using the `train_shakespeare.py` script:
 ```bash
-mpirun -n 2 python train_shakespeare.py --tensor-parallel-size 2
+mpirun -n {1, 2, ...} python train_shakespeare.py --tensor-parallel-size {1, 2, ...} --data-parallel-size {1, 2, ...}
 ```
 
-This will also save the parameters and optimizer state at `data/model.npy` to be used for sampling. Training takes about 12 hours for `--tensor-parallel-size 2` and 32 hours without tensor parallel, reaching a loss of about ~1.80[^1] after a couple of hours, depending on your hardware (I'm using a 2015 macbook pro):
+Make sure that the product of `--{tensor, data}-parallel-size` is equal to `-n`. Parameters and optimizer state will be stored at `data/model.npy` to be used for sampling. Training takes about 12 hours for `--tensor-parallel-size 2` and 32 hours without tensor parallel, reaching a loss of about ~1.80[^1] after a couple of hours, depending on your hardware (I'm using a 2015 macbook pro):
 
 <img src="data/validation_loss.svg" width=50% height=50%>
 
-Run a sample generation using:
+Note that the graph above only implies that on CPU you are better off performing smaller matmuls (data/tensor parallel combinations).
+This makes sense given that you are compute bound quite easily on the CPU.
+
+
+Run a sample generation using the following:
+
 ```bash
-mpirun -n 2 python sample.py --tensor-parallel-size 2
+mpirun -n {1, 2, ...} python sample.py --sampler {softmax, greedy} --tensor-parallel-size {1, 2, ..} --data-parallel-size {1, 2, ...}
 ```
 
 With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
