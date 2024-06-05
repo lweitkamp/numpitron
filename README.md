@@ -33,7 +33,9 @@ You will need to download the shakespeare dataset (`shakespeare_char_{train|val}
 
 Training with tensor/data parallelism can be done using the `train_shakespeare.py` script:
 ```bash
-mpirun -n {1, 2, ...} python train_shakespeare.py --tensor-parallel-size {1, 2, ...} --data-parallel-size {1, 2, ...}
+mpirun -n {1, 2, ...} python train_shakespeare.py \
+    --tensor-parallel-size {1, 2, ...} \
+    --data-parallel-size {1, 2, ...}
 ```
 
 Make sure that the product of `--{tensor, data}-parallel-size` is equal to `-n`. Parameters and optimizer state will be stored at `data/model.npy` to be used for sampling. Training takes about 12 hours for `--tensor-parallel-size 2` and 32 hours without tensor parallel, reaching a loss of about ~1.80[^1] after a couple of hours, depending on your hardware (I'm using a 2015 macbook pro):
@@ -47,7 +49,8 @@ This makes sense given that you are compute bound quite easily on the CPU.
 Run a sample generation using the following:
 
 ```bash
-mpirun -n {1, 2, ...} python sample.py --tensor-parallel-size {1, 2, ..}
+mpirun -n {1, 2, ...} python sample.py \
+    --tensor-parallel-size {1, 2, ..}
 ```
 
 With the pretrained model loaded you would expect to see the following text below. Not bad, not great.
