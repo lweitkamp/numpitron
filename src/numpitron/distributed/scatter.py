@@ -27,4 +27,10 @@ def scatter(
     displ = [sum(shapes[:p]) for p in range(len(shapes))]
 
     scatter_list = np.concatenate([x.reshape(-1) for x in scatter_list])
-    group.Scatterv([scatter_list, shapes, displ, MPI.FLOAT], destination_tensor, root=src)
+
+    DTYPES = {"float32": MPI.FLOAT, "uint16": MPI.UINT16_T}
+    group.Scatterv(
+        [scatter_list, shapes, displ, DTYPES[source_tensor.dtype.name]],
+        destination_tensor,
+        root=src,
+    )

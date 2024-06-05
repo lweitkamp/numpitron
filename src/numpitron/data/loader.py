@@ -1,4 +1,3 @@
-""""""
 from pathlib import Path
 
 import numpy as np
@@ -53,6 +52,33 @@ class DataLoader:
                 )[:, None]
                 inputs = data[start_idx + self.seq_range]
                 labels = data[start_idx + 1 + self.seq_range]
+
+                if npdist.data_parallel_size() > 1:
+                    local_batch_size = self.batch_size // npdist.data_parallel_size()
+                    inputs_local = np.empty(
+                        (local_batch_size, self.seq_len), dtype=inputs.dtype
+                    )
+                    labels_local = np.empty(
+                        (local_batch_size, self.seq_len), dtype=labels.dtype
+                    )
+
+                    npdist.scatter(
+                        inputs,
+                        inputs_local,
+                        axis=0,
+                        src=0,
+                        group=npdist.data_parallel_group(),
+                    )
+                    npdist.scatter(
+                        labels,
+                        labels_local,
+                        axis=0,
+                        src=0,
+                        group=npdist.data_parallel_group(),
+                    )
+                    inputs = inputs_local
+                    labels = labels_local
+
                 yield inputs, labels
 
                 batch_idx += 1
