@@ -37,7 +37,7 @@ mpirun -n {1, 2, ...} python train_shakespeare.py --tensor-parallel-size {1, 2, 
 
 Make sure that the product of `--{tensor, data}-parallel-size` is equal to `-n`. Parameters and optimizer state will be stored at `data/model.npy` to be used for sampling. Training takes about 12 hours for `--tensor-parallel-size 2` and 32 hours without tensor parallel, reaching a loss of about ~1.80[^1] after a couple of hours, depending on your hardware (I'm using a 2015 macbook pro):
 
-<img src="data/validation_loss.svg" width=50% height=50%>
+<img src="data/validation_loss.svg" width=75% height=75%>
 
 Note that the graph above only implies that on CPU you are better off performing smaller matmuls (data/tensor parallel combinations).
 This makes sense given that you are compute bound quite easily on the CPU.
